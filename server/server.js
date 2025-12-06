@@ -249,7 +249,7 @@ app.get('/api/webmail/messages', authenticateWebmail, async (req, res) => {
 });
 
 // Start Servers
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 const SMTP_PORT = process.env.SMTP_PORT || 2525;
 const SUBMISSION_PORT = process.env.SUBMISSION_PORT || 5870;
 
