@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 
 const smtpServer = require('./src/smtp/server');
 const logger = require('./src/config/logger');
+const seedDatabase = require('./src/config/seed');
 
 // Models
 const Client = require('./src/models/Client');
@@ -27,7 +28,10 @@ app.use(express.json());
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => logger.info('MongoDB Connected'))
+  .then(async () => {
+    logger.info('MongoDB Connected');
+    await seedDatabase();
+  })
   .catch(err => logger.error('MongoDB Connection Error:', err));
 
 // --- MIDDLEWARE ---
@@ -138,8 +142,11 @@ app.post('/api/domains/:id/verify', authenticateClient, async (req, res) => {
 
     if (isVerified) {
       const keys = domainService.generateDkimKeys();
+      // Use real MX check instead of mock status
+      const mxExists = await domainService.checkMxRecord(domain.name);
+      
       domain.is_verified = true;
-      domain.mx_status = 'active'; // Mocking active status for now
+      domain.mx_status = mxExists ? 'active' : 'pending';
       domain.dkim_private_key = keys.privateKey;
       domain.dkim_public_key = keys.publicKey;
       await domain.save();

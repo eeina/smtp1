@@ -5,24 +5,6 @@ import axios from 'axios';
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      div: any;
-      h1: any;
-      h2: any;
-      h3: any;
-      h4: any;
-      h5: any;
-      p: any;
-      span: any;
-      button: any;
-      input: any;
-      label: any;
-      form: any;
-      nav: any;
-      main: any;
-      svg: any;
-      circle: any;
-      path: any;
-      iframe: any;
       [elemName: string]: any;
     }
   }

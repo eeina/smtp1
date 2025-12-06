@@ -21,13 +21,9 @@ const verifyDomainDns = async (domainName, token) => {
     const records = await dns.resolveTxt(domainName);
     
     // Flatten chunks and look for the token
-    // A record might be split into chunks, but usually a token is short enough to be in one.
-    // However, checking strictly:
     const flatRecords = records.map(chunk => chunk.join(''));
     
-    // Check if any record equals the token or contains it (depending on strictness reqs)
-    // Often verification requires exact match or "verification=TOKEN" format.
-    // Based on prompt "check if the token exists", strict inclusion is safest.
+    // Check if any record equals the token or contains it
     return flatRecords.some(record => record.includes(token));
   } catch (error) {
     // Domain not found or no TXT records
@@ -37,7 +33,7 @@ const verifyDomainDns = async (domainName, token) => {
 
 /**
  * Fetches MX records to see if they exist.
- * Mocks the IP check by returning true if any MX record exists.
+ * Checks for actual MX records on the domain.
  * @param {string} domainName 
  * @returns {Promise<boolean>}
  */
