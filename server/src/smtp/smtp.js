@@ -1,6 +1,7 @@
 const { SMTPServer } = require('smtp-server');
 const { simpleParser } = require('mailparser');
 const EmailLog = require('../models/EmailLog');
+const logger = require('../config/logger');
 
 const smtp = new SMTPServer({
   secure: false,
@@ -9,7 +10,7 @@ const smtp = new SMTPServer({
   onData(stream, session, callback) {
     simpleParser(stream, async (err, parsed) => {
       if (err) {
-        console.error('Parsed Error:', err);
+        logger.error('Parsed Error:', err);
         return callback(new Error('Error parsing email'));
       }
 
@@ -23,10 +24,10 @@ const smtp = new SMTPServer({
           status: 'received'
         });
 
-        console.log('SAVED TO DB:', parsed.subject);
+        logger.info(`SAVED TO DB: ${parsed.subject}`);
         callback();
       } catch (error) {
-        console.error('Database Error:', error);
+        logger.error('Database Error:', error);
         callback(new Error('Error saving to database'));
       }
     });

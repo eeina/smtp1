@@ -5,6 +5,17 @@ import axios from 'axios';
 declare global {
   namespace JSX {
     interface IntrinsicElements {
+      div: any;
+      header: any;
+      h1: any;
+      h3: any;
+      p: any;
+      table: any;
+      thead: any;
+      tbody: any;
+      tr: any;
+      th: any;
+      td: any;
       [elemName: string]: any;
     }
   }
