@@ -4,14 +4,14 @@ import '../types';
 const LandingView = ({ onNavigate }: { onNavigate: (view: string) => void }) => (
   <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
     <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-      <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">Mail Server</h2>
-      <p className="mt-2 text-lg text-gray-600">Enterprise Email Infrastructure</p>
+      <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">Webmail</h2>
+      <p className="mt-2 text-lg text-gray-600">Secure Email Access</p>
     </div>
 
     <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
       <div className="bg-white py-8 px-4 shadow rounded-lg sm:px-10 border-t-4 border-blue-600">
           <h3 className="text-2xl font-bold text-gray-800 mb-2 text-center">Welcome Back</h3>
-          <p className="text-gray-500 mb-8 text-center text-sm">Sign in to access your admin console or webmail inbox.</p>
+          <p className="text-gray-500 mb-8 text-center text-sm">Sign in to access your inbox.</p>
           
           <button
             onClick={() => onNavigate('login')}
@@ -19,14 +19,10 @@ const LandingView = ({ onNavigate }: { onNavigate: (view: string) => void }) => 
           >
             Sign In
           </button>
-
-          <div className="mt-6 text-center">
-              <span className="text-xs text-gray-400">System automatically detects account type</span>
-          </div>
       </div>
       
       <div className="mt-8 text-center text-xs text-gray-400">
-        &copy; {new Date().getFullYear()} Secure SMTP Service. All rights reserved.
+        &copy; {new Date().getFullYear()} Secure Webmail. All rights reserved.
       </div>
     </div>
   </div>

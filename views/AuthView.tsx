@@ -40,6 +40,11 @@ const AuthView = ({ onSuccess, onBack }: AuthViewProps) => {
     }
   };
 
+  const handleForgotPassword = (e: React.MouseEvent) => {
+      e.preventDefault();
+      alert("Please contact your administrator to reset your password.");
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -47,7 +52,7 @@ const AuthView = ({ onSuccess, onBack }: AuthViewProps) => {
           Sign In
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Access your Admin Dashboard or Webmail
+          Continue to your email
         </p>
       </div>
 
@@ -76,6 +81,11 @@ const AuthView = ({ onSuccess, onBack }: AuthViewProps) => {
               <div className="text-sm">
                  <button type="button" onClick={onBack} className="font-medium text-gray-600 hover:text-gray-900">
                     &larr; Back to Home
+                  </button>
+              </div>
+              <div className="text-sm">
+                  <button type="button" onClick={handleForgotPassword} className="font-medium text-blue-600 hover:text-blue-500">
+                    Forgot password?
                   </button>
               </div>
             </div>
