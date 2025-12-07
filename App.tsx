@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
+// Workaround for missing JSX.IntrinsicElements definitions
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}
+
 // --- TYPES ---
 interface User {
   email: string;

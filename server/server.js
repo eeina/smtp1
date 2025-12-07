@@ -16,24 +16,33 @@ const webmailRoutes = require('./src/routes/webmail');
 
 const app = express();
 
-// Security & Middleware
-app.use(helmet());
-
-// Robust CORS Configuration
+// --- CORS CONFIGURATION (MUST BE FIRST) ---
 const corsOptions = {
-  origin: 'https://smtp.eeina.com', // Explicitly allow your frontend domain
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
-  credentials: true, // Enable if you ever need cookies, good practice
-  optionsSuccessStatus: 204
+  origin: true, // Reflects the request origin (e.g., https://smtp.eeina.com)
+  credentials: true, // Required for authorization headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  optionsSuccessStatus: 200
 };
 
-// Apply CORS middleware
 app.use(cors(corsOptions));
-// Explicitly handle OPTIONS preflight requests for all routes just in case
-app.options('*', cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight requests
+
+// --- SECURITY & MIDDLEWARE ---
+// HELMET FIX: Explicitly allow cross-origin resource sharing
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 app.use(express.json());
+
+// Request Logger (Debug)
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    // console.log(`${req.method} ${req.path} - Origin: ${req.get('origin')}`);
+  }
+  next();
+});
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -48,6 +57,12 @@ app.use('/api/auth', clientAuthRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/mailboxes', mailboxRoutes);
 app.use('/api/webmail', webmailRoutes);
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  logger.error(err.stack);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
 
 // Start Servers
 const PORT = process.env.PORT || 4000;
