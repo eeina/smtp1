@@ -77,7 +77,8 @@ const getDnsStatus = async (domainName, token) => {
     a_record: false,
     mx: false,
     spf: false,
-    dmarc: false
+    dmarc: false,
+    dkim: false
   };
 
   try {
@@ -111,6 +112,13 @@ const getDnsStatus = async (domainName, token) => {
       const dmarcRecords = await dns.resolveTxt(`_dmarc.${domainName}`);
       const flatDmarc = dmarcRecords.map(c => c.join(''));
       status.dmarc = flatDmarc.some(r => r.toLowerCase().includes('v=dmarc1'));
+    } catch (e) { /* ignore */ }
+
+    // 5. DKIM (default._domainkey.domain)
+    try {
+      const dkimRecords = await dns.resolveTxt(`default._domainkey.${domainName}`);
+      const flatDkim = dkimRecords.map(c => c.join(''));
+      status.dkim = flatDkim.some(r => r.includes('v=DKIM1'));
     } catch (e) { /* ignore */ }
 
   } catch (err) {

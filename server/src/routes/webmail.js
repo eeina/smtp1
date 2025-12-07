@@ -42,11 +42,11 @@ router.get('/messages', authenticateWebmail, async (req, res) => {
 // Helper: Send email to external server
 const deliverExternal = async (senderEmail, recipientEmail, subject, text, html) => {
   try {
-    const domain = recipientEmail.split('@')[1];
-    if (!domain) throw new Error('Invalid recipient domain');
+    const domainPart = recipientEmail.split('@')[1];
+    if (!domainPart) throw new Error('Invalid recipient domain');
 
     // 1. Resolve MX Records
-    const mxRecords = await dns.resolveMx(domain);
+    const mxRecords = await dns.resolveMx(domainPart);
     if (!mxRecords || mxRecords.length === 0) throw new Error('No MX records found for domain');
 
     // Sort by priority (lowest number first)
@@ -54,7 +54,23 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
     
     logger.info(`Resolving delivery for ${recipientEmail}: via ${bestMx}`);
 
-    // 2. Create Transporter for this specific delivery
+    // 2. Prepare DKIM Signing
+    // Fetch sender mailbox and domain to get private key
+    const senderMailbox = await Mailbox.findOne({ email: senderEmail }).populate('domain_id');
+    let dkimOptions = undefined;
+
+    if (senderMailbox && senderMailbox.domain_id && senderMailbox.domain_id.dkim_private_key) {
+      dkimOptions = {
+        domainName: senderMailbox.domain_id.name,
+        keySelector: 'default', // We default to 'default' selector
+        privateKey: senderMailbox.domain_id.dkim_private_key
+      };
+      logger.info(`DKIM Signing enabled for ${senderEmail}`);
+    } else {
+      logger.warn(`No DKIM key found for ${senderEmail}. Email will be unsigned.`);
+    }
+
+    // 3. Create Transporter
     const transporter = nodemailer.createTransport({
       host: bestMx,
       port: 25, // Standard MTA-to-MTA port
@@ -62,10 +78,11 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
       tls: {
         rejectUnauthorized: false // Often necessary for opportunistic TLS
       },
-      name: process.env.MY_HOSTNAME || 'smtp-server.local' // HELO hostname
+      name: process.env.MY_HOSTNAME || 'smtp-server.local', // HELO hostname
+      dkim: dkimOptions
     });
 
-    // 3. Send
+    // 4. Send
     await transporter.sendMail({
       from: senderEmail,
       to: recipientEmail,
@@ -77,7 +94,6 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
     logger.info(`External Delivery Success: ${recipientEmail}`);
     return true;
   } catch (error) {
-    // Fixed logging to include error message in the main log string
     logger.error(`External Delivery Failed to ${recipientEmail}: ${error.message}`);
     return false;
   }

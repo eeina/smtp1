@@ -33,6 +33,15 @@ export interface EmailMessage {
   created_at: string;
 }
 
+export interface DnsStatus {
+  verification: boolean;
+  a_record: boolean;
+  mx: boolean;
+  spf: boolean;
+  dmarc: boolean;
+  dkim: boolean;
+}
+
 declare global {
   namespace JSX {
     interface IntrinsicElements {

@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
-import { User, Domain, Mailbox } from '../types';
-
-interface DnsStatus {
-  verification: boolean;
-  a_record: boolean;
-  mx: boolean;
-  spf: boolean;
-  dmarc: boolean;
-}
+import { User, Domain, Mailbox, DnsStatus } from '../types';
 
 interface SystemLog {
   _id: string;
@@ -162,6 +154,16 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
     } finally {
       setCheckingDns(false);
     }
+  };
+
+  const formatDkimValue = (pemKey?: string) => {
+    if(!pemKey) return '';
+    // Remove headers, footers, newlines for DNS value
+    const raw = pemKey
+      .replace('-----BEGIN PUBLIC KEY-----', '')
+      .replace('-----END PUBLIC KEY-----', '')
+      .replace(/[\r\n\s]/g, '');
+    return `v=DKIM1; k=rsa; p=${raw}`;
   };
 
   const StatusIcon = ({ ok }: { ok?: boolean }) => {
@@ -429,7 +431,23 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                          </td>
                          <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.spf} /></td>
                       </tr>
-                      {/* 5. DMARC */}
+                      {/* 5. DKIM */}
+                      <tr>
+                         <td className="px-3 py-2 font-mono font-bold">TXT</td>
+                         <td className="px-3 py-2 font-mono text-xs">default._domainkey</td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">
+                           {viewDnsDomain.dkim_public_key ? (
+                              <div className="flex items-center justify-between">
+                                <span className="truncate max-w-xs">{formatDkimValue(viewDnsDomain.dkim_public_key)}</span>
+                                <button onClick={() => handleCopy(formatDkimValue(viewDnsDomain.dkim_public_key))} className="text-blue-600 text-xs shrink-0 ml-2">Copy</button>
+                              </div>
+                           ) : (
+                               <span className="text-gray-400 italic">Verify domain to generate keys</span>
+                           )}
+                         </td>
+                         <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.dkim} /></td>
+                      </tr>
+                      {/* 6. DMARC */}
                       <tr>
                          <td className="px-3 py-2 font-mono font-bold">TXT</td>
                          <td className="px-3 py-2 font-mono">_dmarc</td>
