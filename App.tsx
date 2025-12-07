@@ -1,11 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-// Fix for missing JSX definitions in the environment
+// Fix: Correctly defined types for all used HTML and SVG elements within JSX.IntrinsicElements to resolve widespread TypeScript errors.
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      [elemName: string]: any;
+      // HTML Elements
+      div: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
+      h1: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
+      h2: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
+      h3: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
+      h4: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
+      h5: React.DetailedHTMLProps<React.HTMLAttributes<HTMLHeadingElement>, HTMLHeadingElement>;
+      p: React.DetailedHTMLProps<React.HTMLAttributes<HTMLParagraphElement>, HTMLParagraphElement>;
+      span: React.DetailedHTMLProps<React.HTMLAttributes<HTMLSpanElement>, HTMLSpanElement>;
+      button: React.DetailedHTMLProps<React.ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>;
+      form: React.DetailedHTMLProps<React.FormHTMLAttributes<HTMLFormElement>, HTMLFormElement>;
+      input: React.DetailedHTMLProps<React.InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>;
+      label: React.DetailedHTMLProps<React.LabelHTMLAttributes<HTMLLabelElement>, HTMLLabelElement>;
+      nav: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
+      main: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>;
+      iframe: React.DetailedHTMLProps<React.IframeHTMLAttributes<HTMLIFrameElement>, HTMLIFrameElement>;
+
+      // SVG Elements
+      svg: React.SVGProps<SVGSVGElement>;
+      circle: React.SVGProps<SVGCircleElement>;
+      path: React.SVGProps<SVGPathElement>;
     }
   }
 }
@@ -46,7 +66,8 @@ interface EmailMessage {
 
 // --- API CONFIG ---
 const api = axios.create({
-  baseURL: 'http://localhost:4000/api',
+  // Point to the dedicated backend API domain
+  baseURL: 'https://mail-api.eeina.com',
 });
 
 // Add token to requests
@@ -129,8 +150,8 @@ const AuthView = ({
 
     try {
       const endpoint = role === 'client' 
-        ? (isRegister ? '/auth/register' : '/auth/login')
-        : '/webmail/login';
+        ? (isRegister ? '/api/auth/register' : '/api/auth/login')
+        : '/api/webmail/login';
       
       const payload = isRegister 
         ? { email, password, company_name: companyName }
@@ -236,9 +257,9 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
 
   const refreshData = async () => {
     try {
-      const dRes = await api.get('/domains');
+      const dRes = await api.get('/api/domains');
       setDomains(dRes.data);
-      const mRes = await api.get('/mailboxes');
+      const mRes = await api.get('/api/mailboxes');
       setMailboxes(mRes.data);
     } catch (err) {
       console.error(err);
@@ -251,7 +272,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
     e.preventDefault();
     if (!newDomain) return;
     try {
-      await api.post('/domains', { name: newDomain });
+      await api.post('/api/domains', { name: newDomain });
       setNewDomain('');
       refreshData();
     } catch (err: any) {
@@ -262,7 +283,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
   const handleVerify = async (domainId: string) => {
     setLoading(true);
     try {
-      await api.post(`/domains/${domainId}/verify`);
+      await api.post(`/api/domains/${domainId}/verify`);
       await refreshData();
       alert('Domain Verified Successfully!');
     } catch (err: any) {
@@ -276,7 +297,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
     e.preventDefault();
     if (!selectedDomainId) return;
     try {
-      await api.post(`/domains/${selectedDomainId}/mailboxes`, {
+      await api.post(`/api/domains/${selectedDomainId}/mailboxes`, {
         email: newMailboxEmail,
         password: newMailboxPassword
       });
@@ -449,7 +470,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await api.get('/webmail/messages');
+        const res = await api.get('/api/webmail/messages');
         setMessages(res.data);
       } catch (err) {
         console.error(err);

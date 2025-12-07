@@ -23,7 +23,8 @@ const app = express();
 
 // Security & Middleware
 app.use(helmet());
-app.use(cors());
+// Configure CORS for your specific frontend domain
+app.use(cors({ origin: 'https://smtp.eeina.com' }));
 app.use(express.json());
 
 // Database Connection
