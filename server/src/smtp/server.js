@@ -9,7 +9,7 @@ const logger = require('../config/logger');
 // Authenticate user against Mailbox database for Port 587
 const onAuth = async (auth, session, callback) => {
   try {
-    const mailbox = await Mailbox.findOne({ email: auth.username });
+    const mailbox = await Mailbox.findOne({ email: auth.username.toLowerCase() });
     if (!mailbox) {
       return callback(new Error('Invalid username or password'));
     }
@@ -53,7 +53,7 @@ const onRcptTo = async (address, session, callback) => {
     }
 
     // 3. Inbound (Guest/Internet) -> Check if recipient exists locally
-    const mailbox = await Mailbox.findOne({ email: address.address });
+    const mailbox = await Mailbox.findOne({ email: address.address.toLowerCase() });
     if (!mailbox) {
       // Reject unknown recipients to prevent backscatter/spam
       return callback(new Error('550 Relaying denied'));
@@ -77,7 +77,7 @@ const onData = (stream, session, callback) => {
 
     try {
       const { from, to, subject, text, html } = parsed;
-      const fromAddress = from ? from.text : ''; 
+      const fromAddress = from ? from.text : 'Unknown'; 
       
       // Handle To addresses (can be array or object)
       const toAddressStr = Array.isArray(to) 
@@ -88,18 +88,20 @@ const onData = (stream, session, callback) => {
         // --- OUTBOUND (Authenticated User) ---
         
         // 1. Save to Sender's 'Sent' folder
-        await EmailMessage.create({
-          mailbox_id: session.user._id,
-          direction: 'outbound',
-          from: fromAddress,
-          to: toAddressStr,
-          subject: subject || '',
-          text_body: text || '',
-          html_body: html || '',
-          folder: 'sent',
-          is_read: true
-        });
-        logger.info(`OUTBOUND saved to DB for ${session.user.email}`);
+        if (session.user._id) {
+            await EmailMessage.create({
+              mailbox_id: session.user._id,
+              direction: 'outbound',
+              from: fromAddress,
+              to: toAddressStr,
+              subject: subject || '',
+              text_body: text || '',
+              html_body: html || '',
+              folder: 'sent',
+              is_read: true
+            });
+            logger.info(`OUTBOUND saved to DB for ${session.user.email}`);
+        }
 
         // 2. DELIVER THE EMAIL (Relay)
         const recipients = session.envelope.rcptTo.map(r => r.address);
@@ -114,8 +116,11 @@ const onData = (stream, session, callback) => {
         
         let deliveredCount = 0;
         for (const recipient of recipients) {
-          const mailbox = await Mailbox.findOne({ email: recipient.address });
-          if (mailbox) {
+          // Look up mailbox using lowercased address
+          const mailbox = await Mailbox.findOne({ email: recipient.address.toLowerCase() });
+          
+          // CRITICAL FIX: Ensure mailbox AND mailbox._id exist before creating
+          if (mailbox && mailbox._id) {
             await EmailMessage.create({
               mailbox_id: mailbox._id,
               direction: 'inbound',

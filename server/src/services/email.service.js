@@ -40,7 +40,7 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
     let dkimOptions = undefined;
     
     // Check if sender is a Mailbox first
-    const senderMailbox = await Mailbox.findOne({ email: cleanSender }).populate('domain_id');
+    const senderMailbox = await Mailbox.findOne({ email: cleanSender.toLowerCase() }).populate('domain_id');
 
     if (senderMailbox && senderMailbox.domain_id && senderMailbox.domain_id.dkim_private_key) {
       dkimOptions = {
@@ -104,9 +104,9 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
  */
 const sendEmail = async (from, to, subject, text, html) => {
     try {
-        const cleanTo = extractEmail(to);
+        const cleanTo = extractEmail(to).toLowerCase().trim();
         
-        // Check if local
+        // Check if local (Case Insensitive)
         const recipientMailbox = await Mailbox.findOne({ email: cleanTo });
         
         if (recipientMailbox) {
