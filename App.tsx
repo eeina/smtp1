@@ -1,30 +1,48 @@
 import React, { useState, useEffect } from 'react';
+import api from './api';
 import LandingView from './views/LandingView';
 import AuthView from './views/AuthView';
 import ClientDashboard from './views/ClientDashboard';
 import WebmailView from './views/WebmailView';
+import Spinner from './components/Spinner';
 import { User } from './types';
 
 export default function App() {
   const [view, setView] = useState<'landing' | 'login' | 'client-dashboard' | 'webmail-dashboard'>('landing');
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Check auth on load
   useEffect(() => {
-    const token = localStorage.getItem('smtp_token');
-    const role = localStorage.getItem('smtp_role');
-    
-    // In a real app we would verify token validity with backend here
-    if (token && role) {
-        if (role === 'client') setView('client-dashboard');
-        else if (role === 'mailbox') setView('webmail-dashboard');
-        
-        // We need to re-fetch user details, but for now we rely on re-login or basic persistence 
-        // For prototype, we might miss user details on refresh unless we decode token or fetch profile
-        // Let's force re-login if we don't have user object for safety in this demo
-    } else {
-        setView('landing');
-    }
+    const initAuth = async () => {
+      const token = localStorage.getItem('smtp_token');
+      const role = localStorage.getItem('smtp_role');
+
+      if (token && role) {
+        try {
+          if (role === 'client') {
+             const res = await api.get('/api/account/profile');
+             setUser({ ...res.data, role: 'client', token });
+             setView('client-dashboard');
+          } else if (role === 'mailbox') {
+             const res = await api.get('/api/webmail/profile');
+             setUser({ ...res.data, role: 'mailbox', token });
+             setView('webmail-dashboard');
+          }
+        } catch (err) {
+          // Token invalid or session expired
+          console.error("Session fetch failed", err);
+          localStorage.removeItem('smtp_token');
+          localStorage.removeItem('smtp_role');
+          setView('landing');
+        }
+      } else {
+         setView('landing');
+      }
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const handleLoginSuccess = (userData: User) => {
@@ -45,6 +63,17 @@ export default function App() {
         setUser({ ...user, ...updates });
     }
   };
+
+  if (loading) {
+    return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="flex flex-col items-center">
+                <Spinner />
+                <p className="mt-4 text-gray-500 text-sm">Loading...</p>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <>

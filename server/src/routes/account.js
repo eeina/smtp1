@@ -5,6 +5,22 @@ const Client = require('../models/Client');
 const { authenticateClient } = require('../middleware/auth');
 const logger = require('../config/logger');
 
+// Get Profile
+router.get('/profile', authenticateClient, async (req, res) => {
+    try {
+        const client = await Client.findById(req.user.client_id);
+        if(!client) return res.status(404).json({error: "Client not found"});
+        res.json({
+            email: client.email,
+            company_name: client.company_name,
+            recovery_email: client.recovery_email
+        });
+    } catch(err) {
+        logger.error('Get Profile Error:', err);
+        res.status(500).json({error: "Server Error"});
+    }
+});
+
 // Update Profile (Email, Company Name, Recovery Email)
 router.put('/profile', authenticateClient, async (req, res) => {
   try {

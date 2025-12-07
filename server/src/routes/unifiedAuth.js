@@ -24,7 +24,8 @@ router.post('/', async (req, res) => {
           token,
           role: 'client',
           email: client.email,
-          company_name: client.company_name
+          company_name: client.company_name,
+          recovery_email: client.recovery_email
         });
       }
     }
@@ -38,7 +39,8 @@ router.post('/', async (req, res) => {
         return res.json({
           token,
           role: 'mailbox',
-          email: mailbox.email
+          email: mailbox.email,
+          recovery_email: mailbox.recovery_email
         });
       }
     }
