@@ -3,6 +3,7 @@ import 'react';
 export interface User {
   email: string;
   company_name?: string;
+  recovery_email?: string;
   token?: string;
   role: 'client' | 'mailbox';
 }
@@ -19,6 +20,7 @@ export interface Domain {
 export interface Mailbox {
   _id: string;
   email: string;
+  recovery_email?: string;
   domain_id: { _id: string; name: string } | string;
 }
 

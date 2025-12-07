@@ -2,13 +2,11 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const dns = require('dns').promises;
-const nodemailer = require('nodemailer');
 const Mailbox = require('../models/Mailbox');
 const EmailMessage = require('../models/EmailMessage');
-const SystemConfig = require('../models/SystemConfig');
 const { authenticateWebmail } = require('../middleware/auth');
 const logger = require('../config/logger');
+const emailService = require('../services/email.service');
 
 // Webmail Login
 router.post('/login', async (req, res) => {
@@ -57,77 +55,6 @@ router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
   }
 });
 
-// Helper: Send email to external server
-const deliverExternal = async (senderEmail, recipientEmail, subject, text, html) => {
-  try {
-    const domainPart = recipientEmail.split('@')[1];
-    if (!domainPart) throw new Error('Invalid recipient domain');
-
-    // 1. Resolve MX Records
-    const mxRecords = await dns.resolveMx(domainPart);
-    if (!mxRecords || mxRecords.length === 0) throw new Error('No MX records found for domain');
-
-    // Sort by priority (lowest number first)
-    const bestMx = mxRecords.sort((a, b) => a.priority - b.priority)[0].exchange;
-    
-    logger.info(`Resolving delivery for ${recipientEmail}: via ${bestMx}`);
-
-    // 2. Prepare DKIM Signing
-    // Fetch sender mailbox and domain to get private key
-    const senderMailbox = await Mailbox.findOne({ email: senderEmail }).populate('domain_id');
-    let dkimOptions = undefined;
-
-    if (senderMailbox && senderMailbox.domain_id && senderMailbox.domain_id.dkim_private_key) {
-      dkimOptions = {
-        domainName: senderMailbox.domain_id.name,
-        keySelector: 'default', // We default to 'default' selector
-        privateKey: senderMailbox.domain_id.dkim_private_key
-      };
-      logger.info(`DKIM Signing enabled for ${senderEmail}`);
-    } else {
-      logger.warn(`No DKIM key found for ${senderEmail}. Email will be unsigned.`);
-    }
-
-    // 3. Get System Config for HELO
-    let heloName = process.env.MY_HOSTNAME || 'smtp-server.local';
-    try {
-        const config = await SystemConfig.findOne({ singleton: true });
-        if (config && config.smtp_hostname) {
-            heloName = config.smtp_hostname;
-        }
-    } catch(e) {
-        // Fallback to env
-    }
-
-    // 4. Create Transporter
-    const transporter = nodemailer.createTransport({
-      host: bestMx,
-      port: 25, // Standard MTA-to-MTA port
-      secure: false, // TLS is upgraded via STARTTLS usually
-      tls: {
-        rejectUnauthorized: false // Often necessary for opportunistic TLS
-      },
-      name: heloName, // Dynamic HELO hostname
-      dkim: dkimOptions
-    });
-
-    // 5. Send
-    await transporter.sendMail({
-      from: senderEmail,
-      to: recipientEmail,
-      subject: subject,
-      text: text,
-      html: html
-    });
-    
-    logger.info(`External Delivery Success: ${recipientEmail} (HELO: ${heloName})`);
-    return true;
-  } catch (error) {
-    logger.error(`External Delivery Failed to ${recipientEmail}: ${error.message}`);
-    return false;
-  }
-};
-
 // Send Email
 router.post('/send', authenticateWebmail, async (req, res) => {
   try {
@@ -158,28 +85,7 @@ router.post('/send', authenticateWebmail, async (req, res) => {
     const recipients = to.split(/[;,]+/).map(r => r.trim()).filter(r => r);
 
     for (const recipientEmail of recipients) {
-      // Check if local
-      const recipientMailbox = await Mailbox.findOne({ email: recipientEmail });
-      
-      if (recipientMailbox) {
-        // --- LOCAL DELIVERY ---
-        await EmailMessage.create({
-          mailbox_id: recipientMailbox._id,
-          direction: 'inbound',
-          from: senderEmail,
-          to: recipientEmail,
-          subject: subject || '',
-          text_body: body || '',
-          html_body: safeHtml,
-          folder: 'inbox',
-          is_read: false
-        });
-        logger.info(`Internal Delivery: ${senderEmail} -> ${recipientEmail}`);
-      } else {
-        // --- EXTERNAL DELIVERY ---
-        // Fire and forget (don't block the API response, but log errors)
-        deliverExternal(senderEmail, recipientEmail, subject, body, safeHtml);
-      }
+      emailService.sendEmail(senderEmail, recipientEmail, subject, body, safeHtml);
     }
 
     res.json({ message: 'Email sent successfully' });

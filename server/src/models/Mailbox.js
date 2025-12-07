@@ -13,6 +13,11 @@ const mailboxSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  recovery_email: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
   password_hash: {
     type: String,
     required: true

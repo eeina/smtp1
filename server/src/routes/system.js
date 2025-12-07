@@ -33,13 +33,15 @@ router.get('/config', authenticateClient, async (req, res) => {
 // Update System Config
 router.put('/config', authenticateClient, async (req, res) => {
     try {
-        const { smtp_hostname } = req.body;
+        const { smtp_hostname, system_email_address } = req.body;
         let config = await SystemConfig.findOne({ singleton: true });
         if (!config) {
             config = new SystemConfig({ singleton: true });
         }
         
-        config.smtp_hostname = smtp_hostname ? smtp_hostname.trim() : '';
+        if (smtp_hostname !== undefined) config.smtp_hostname = smtp_hostname.trim();
+        if (system_email_address !== undefined) config.system_email_address = system_email_address.trim();
+
         await config.save();
         
         res.json({ message: 'Configuration saved', config });

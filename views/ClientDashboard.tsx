@@ -160,10 +160,16 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
   const handleCreateMailbox = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDomainId) return;
+
+    // Get recovery email from form input directly since we don't have separate state for it
+    const formData = new FormData(e.target as HTMLFormElement);
+    const recoveryEmail = formData.get('recoveryEmail') as string;
+
     try {
       await api.post(`/api/domains/${selectedDomainId}/mailboxes`, {
         email: newMailboxEmail,
-        password: newMailboxPassword
+        password: newMailboxPassword,
+        recovery_email: recoveryEmail
       });
       setNewMailboxEmail('');
       setNewMailboxPassword('');

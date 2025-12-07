@@ -5,10 +5,10 @@ const Client = require('../models/Client');
 const { authenticateClient } = require('../middleware/auth');
 const logger = require('../config/logger');
 
-// Update Profile (Email, Company Name)
+// Update Profile (Email, Company Name, Recovery Email)
 router.put('/profile', authenticateClient, async (req, res) => {
   try {
-    const { email, company_name } = req.body;
+    const { email, company_name, recovery_email } = req.body;
     const client = await Client.findById(req.user.client_id);
     
     if (!client) return res.status(404).json({ error: 'Client not found' });
@@ -20,16 +20,19 @@ router.put('/profile', authenticateClient, async (req, res) => {
         client.email = email.toLowerCase();
     }
 
-    if (company_name !== undefined) {
-        client.company_name = company_name;
-    }
+    if (company_name !== undefined) client.company_name = company_name;
+    if (recovery_email !== undefined) client.recovery_email = recovery_email.trim().toLowerCase();
 
     await client.save();
     
     logger.info(`Client profile updated: ${client.email}`);
     res.json({ 
         message: 'Profile updated successfully', 
-        user: { email: client.email, company_name: client.company_name } 
+        user: { 
+            email: client.email, 
+            company_name: client.company_name,
+            recovery_email: client.recovery_email 
+        } 
     });
   } catch (err) {
     logger.error('Update Profile Error:', err);

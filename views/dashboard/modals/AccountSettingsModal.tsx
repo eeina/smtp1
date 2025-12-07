@@ -15,6 +15,7 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
   // Profile State
   const [email, setEmail] = useState(user.email);
   const [companyName, setCompanyName] = useState(user.company_name || '');
+  const [recoveryEmail, setRecoveryEmail] = useState(user.recovery_email || '');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileMsg, setProfileMsg] = useState({ type: '', text: '' });
 
@@ -26,6 +27,7 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
 
   // Server Config State
   const [smtpHostname, setSmtpHostname] = useState('');
+  const [systemEmailAddress, setSystemEmailAddress] = useState('');
   const [serverLoading, setServerLoading] = useState(false);
   const [serverMsg, setServerMsg] = useState({ type: '', text: '' });
 
@@ -41,6 +43,7 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
     try {
         const res = await api.get('/api/system/config');
         setSmtpHostname(res.data.smtp_hostname || '');
+        setSystemEmailAddress(res.data.system_email_address || '');
     } catch (err) {
         console.error(err);
     } finally {
@@ -72,7 +75,7 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
     setProfileMsg({ type: '', text: '' });
     
     try {
-        const res = await api.put('/api/account/profile', { email, company_name: companyName });
+        const res = await api.put('/api/account/profile', { email, company_name: companyName, recovery_email: recoveryEmail });
         onUpdate(res.data.user);
         setProfileMsg({ type: 'success', text: 'Profile updated successfully' });
     } catch (err: any) {
@@ -105,7 +108,7 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
     setServerMsg({ type: '', text: '' });
 
     try {
-        await api.put('/api/system/config', { smtp_hostname: smtpHostname });
+        await api.put('/api/system/config', { smtp_hostname: smtpHostname, system_email_address: systemEmailAddress });
         setServerMsg({ type: 'success', text: 'Server configuration saved' });
     } catch (err: any) {
         setServerMsg({ type: 'error', text: err.response?.data?.error || 'Failed to save config' });
@@ -161,6 +164,16 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
                             className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Recovery Email</label>
+                        <input 
+                            type="email" 
+                            className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                            value={recoveryEmail}
+                            onChange={e => setRecoveryEmail(e.target.value)}
+                            placeholder="To reset your password"
                         />
                     </div>
                     <div>
@@ -255,6 +268,20 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
                         </div>
                         <p className="text-xs text-gray-400 mt-2 leading-relaxed">
                             This hostname is announced to other mail servers. For best deliverability, this <strong>must match</strong> your Reverse DNS (PTR) record.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">System Sender Email</label>
+                        <input 
+                            type="email" 
+                            className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                            placeholder="noreply@yourdomain.com"
+                            value={systemEmailAddress}
+                            onChange={e => setSystemEmailAddress(e.target.value)}
+                        />
+                        <p className="text-xs text-gray-400 mt-2">
+                            The "From" address for system notifications (OTP, alerts). Ensure this domain is verified.
                         </p>
                     </div>
 

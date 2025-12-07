@@ -8,6 +8,11 @@ const clientSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
+  recovery_email: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
   password_hash: {
     type: String,
     required: true
