@@ -3,9 +3,10 @@ import { Mailbox } from '../../types';
 
 interface Props {
   mailboxes: Mailbox[];
+  onDeleteMailbox: (id: string) => void;
 }
 
-const MailboxManager = ({ mailboxes }: Props) => {
+const MailboxManager = ({ mailboxes, onDeleteMailbox }: Props) => {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden h-fit">
       <div className="p-6 border-b border-gray-100 flex justify-between items-center">
@@ -32,8 +33,12 @@ const MailboxManager = ({ mailboxes }: Props) => {
                 </div>
             </div>
             <div className="flex items-center">
-                 <button className="text-gray-300 hover:text-gray-500 p-1 rounded-md transition-colors opacity-0 group-hover:opacity-100">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                 <button 
+                    onClick={() => onDeleteMailbox(mb._id)}
+                    className="text-gray-300 hover:text-red-600 p-2 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                    title="Delete Mailbox"
+                 >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                  </button>
             </div>
           </div>

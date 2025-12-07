@@ -13,7 +13,7 @@ import DnsConfigModal from './dashboard/modals/DnsConfigModal';
 import SystemLogsModal from './dashboard/modals/SystemLogsModal';
 import DiagnosticsModal from './dashboard/modals/DiagnosticsModal';
 
-// Types (Local types usually moved to types.ts but for now defined here if specific to view state)
+// Types
 interface SystemLog {
   _id: string;
   level: string;
@@ -110,6 +110,26 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
     }
   };
 
+  const handleDeleteDomain = async (id: string) => {
+    if(!confirm('Are you sure? This will delete all mailboxes and emails associated with this domain.')) return;
+    try {
+        await api.delete(`/api/domains/${id}`);
+        refreshData();
+    } catch (err: any) {
+        alert(err.response?.data?.error || 'Failed to delete domain');
+    }
+  };
+
+  const handleDeleteMailbox = async (id: string) => {
+    if(!confirm('Are you sure you want to delete this mailbox? All messages will be lost.')) return;
+    try {
+        await api.delete(`/api/mailboxes/${id}`);
+        refreshData();
+    } catch(err: any) {
+        alert(err.response?.data?.error || 'Failed to delete mailbox');
+    }
+  };
+
   const handleVerify = async (domainId: string) => {
     setLoading(true);
     try {
@@ -184,6 +204,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                 newDomain={newDomain}
                 setNewDomain={setNewDomain}
                 onAddDomain={handleAddDomain}
+                onDeleteDomain={handleDeleteDomain}
                 onVerify={handleVerify}
                 onOpenDns={openDnsModal}
                 loading={loading}
@@ -201,6 +222,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
           <div className="space-y-6">
             <MailboxManager 
                 mailboxes={mailboxes} 
+                onDeleteMailbox={handleDeleteMailbox}
             />
           </div>
 

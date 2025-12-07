@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const Domain = require('../models/Domain');
 const Mailbox = require('../models/Mailbox');
+const EmailMessage = require('../models/EmailMessage');
 const domainService = require('../services/domain.service');
 const { authenticateClient } = require('../middleware/auth');
 const logger = require('../config/logger');
@@ -26,6 +27,33 @@ router.post('/', authenticateClient, async (req, res) => {
     logger.error('Add Domain Error:', err);
     if (err.code === 11000) return res.status(400).json({ error: 'Domain already registered' });
     res.status(500).json({ error: 'Failed to add domain' });
+  }
+});
+
+// Delete Domain
+router.delete('/:id', authenticateClient, async (req, res) => {
+  try {
+    const domain = await Domain.findOne({ _id: req.params.id, client_id: req.user.client_id });
+    if (!domain) return res.status(404).json({ error: 'Domain not found' });
+
+    // Find all mailboxes associated with this domain
+    const mailboxes = await Mailbox.find({ domain_id: domain._id });
+    const mailboxIds = mailboxes.map(m => m._id);
+
+    // 1. Delete all messages for these mailboxes
+    await EmailMessage.deleteMany({ mailbox_id: { $in: mailboxIds } });
+
+    // 2. Delete all mailboxes
+    await Mailbox.deleteMany({ domain_id: domain._id });
+
+    // 3. Delete the domain
+    await Domain.deleteOne({ _id: domain._id });
+
+    logger.info(`Domain deleted: ${domain.name} (Client: ${req.user.client_id})`);
+    res.json({ message: 'Domain and associated data deleted successfully' });
+  } catch (err) {
+    logger.error('Delete Domain Error:', err);
+    res.status(500).json({ error: 'Failed to delete domain' });
   }
 });
 
