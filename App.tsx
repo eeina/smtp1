@@ -6,6 +6,7 @@ import ClientDashboard from './views/ClientDashboard';
 import WebmailView from './views/WebmailView';
 import Spinner from './components/Spinner';
 import { User } from './types';
+import { ToastProvider } from './components/ToastContext';
 
 export default function App() {
   const [view, setView] = useState<'landing' | 'login' | 'client-dashboard' | 'webmail-dashboard'>('landing');
@@ -76,7 +77,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <ToastProvider>
       {view === 'landing' && <LandingView onNavigate={(v) => setView(v as any)} />}
       
       {view === 'login' && (
@@ -90,6 +91,6 @@ export default function App() {
       {view === 'webmail-dashboard' && user && (
         <WebmailView user={user} onLogout={handleLogout} />
       )}
-    </>
+    </ToastProvider>
   );
 }

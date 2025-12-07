@@ -16,11 +16,11 @@ const DashboardNavbar = ({ user, onLogout, onShowLogs, onOpenSettings }: Props) 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 rounded-lg p-1.5">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+            <div className="bg-green-600 rounded-lg p-1.5">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
             </div>
             <div>
-              <span className="text-lg font-bold text-gray-900 tracking-tight block leading-tight">SMTP Admin</span>
+              <span className="text-lg font-bold text-gray-900 tracking-tight block leading-tight">Eeina Admin</span>
               {user.company_name && (
                 <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider block leading-tight">
                   {user.company_name}
@@ -50,7 +50,7 @@ const DashboardNavbar = ({ user, onLogout, onShowLogs, onOpenSettings }: Props) 
                   <span className="text-sm font-semibold text-gray-800 leading-none">{user.email.split('@')[0]}</span>
                   <span className="text-xs text-gray-500 leading-none mt-1">{user.role}</span>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold text-sm">
                   {user.email.charAt(0).toUpperCase()}
                 </div>
               </div>

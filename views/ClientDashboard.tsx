@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { User, Domain, Mailbox, DnsStatus } from '../types';
+import { useToast } from '../components/ToastContext';
 
 // Components
 import DashboardNavbar from './dashboard/DashboardNavbar';
@@ -37,6 +38,7 @@ interface Props {
 }
 
 const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
+  const { addToast } = useToast();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [newDomain, setNewDomain] = useState('');
@@ -107,6 +109,7 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
       setDiagnosticResult(res.data);
     } catch (err) {
       console.error(err);
+      addToast('Failed to run diagnostics', 'error');
     } finally {
       setRunningDiagnostics(false);
     }
@@ -118,9 +121,10 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
     try {
       await api.post('/api/domains', { name: newDomain });
       setNewDomain('');
+      addToast('Domain added successfully', 'success');
       refreshData();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed');
+      addToast(err.response?.data?.error || 'Failed to add domain', 'error');
     }
   };
 
@@ -128,9 +132,10 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
     if(!confirm('Are you sure? This will delete all mailboxes and emails associated with this domain.')) return;
     try {
         await api.delete(`/api/domains/${id}`);
+        addToast('Domain deleted', 'success');
         refreshData();
     } catch (err: any) {
-        alert(err.response?.data?.error || 'Failed to delete domain');
+        addToast(err.response?.data?.error || 'Failed to delete domain', 'error');
     }
   };
 
@@ -138,9 +143,10 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
     if(!confirm('Are you sure you want to delete this mailbox? All messages will be lost.')) return;
     try {
         await api.delete(`/api/mailboxes/${id}`);
+        addToast('Mailbox deleted', 'success');
         refreshData();
     } catch(err: any) {
-        alert(err.response?.data?.error || 'Failed to delete mailbox');
+        addToast(err.response?.data?.error || 'Failed to delete mailbox', 'error');
     }
   };
 
@@ -149,9 +155,9 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
     try {
       await api.post(`/api/domains/${domainId}/verify`);
       await refreshData();
-      alert('Domain Verified Successfully!');
+      addToast('Domain Verified Successfully!', 'success');
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Verification Failed. DNS changes can take up to 1 hour to propagate.');
+      addToast(err.response?.data?.error || 'Verification Failed', 'error');
     } finally {
       setLoading(false);
     }
@@ -174,9 +180,10 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
       setNewMailboxEmail('');
       setNewMailboxPassword('');
       setSelectedDomainId(null);
+      addToast('Mailbox created successfully', 'success');
       refreshData();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed');
+      addToast(err.response?.data?.error || 'Failed to create mailbox', 'error');
     }
   };
 
@@ -199,7 +206,7 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 relative pb-20">
+    <div className="min-h-screen bg-gray-100 relative pb-20 font-sans">
       
       {/* Navigation */}
       <DashboardNavbar 
@@ -282,7 +289,10 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
         <AccountSettingsModal
             user={user}
             onClose={() => setShowAccountSettings(false)}
-            onUpdate={onUserUpdate}
+            onUpdate={(u) => {
+                onUserUpdate(u);
+                addToast('Account updated', 'success');
+            }}
         />
       )}
 
@@ -290,7 +300,11 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
         <EditMailboxModal 
             mailbox={editingMailbox}
             onClose={() => setEditingMailbox(null)}
-            onSuccess={() => { setEditingMailbox(null); refreshData(); }}
+            onSuccess={() => { 
+                setEditingMailbox(null); 
+                refreshData(); 
+                addToast('Mailbox updated', 'success');
+            }}
         />
       )}
 

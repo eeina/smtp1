@@ -48,19 +48,74 @@ router.get('/profile', authenticateWebmail, async (req, res) => {
     }
 });
 
-// Webmail Messages
+// Webmail Messages (Paginated)
 router.get('/messages', authenticateWebmail, async (req, res) => {
   try {
-    const messages = await EmailMessage.find({ mailbox_id: req.user.mailbox_id })
-      .sort({ created_at: -1 })
-      .limit(100);
-    res.json(messages);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const folder = req.query.folder || 'inbox';
+    const skip = (page - 1) * limit;
+
+    const query = { 
+        mailbox_id: req.user.mailbox_id,
+        folder: folder
+    };
+
+    const [messages, total] = await Promise.all([
+        EmailMessage.find(query)
+          .sort({ created_at: -1 })
+          .skip(skip)
+          .limit(limit),
+        EmailMessage.countDocuments(query)
+    ]);
+
+    res.json({
+        messages,
+        pagination: {
+            total,
+            page,
+            pages: Math.ceil(total / limit)
+        }
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
 
-// Delete Message
+// Mark Message as Read
+router.patch('/messages/:id/read', authenticateWebmail, async (req, res) => {
+    try {
+        const msg = await EmailMessage.findOneAndUpdate(
+            { _id: req.params.id, mailbox_id: req.user.mailbox_id },
+            { is_read: true },
+            { new: true }
+        );
+        if (!msg) return res.status(404).json({ error: 'Message not found' });
+        res.json(msg);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update message' });
+    }
+});
+
+// Batch Delete Messages
+router.post('/messages/batch-delete', authenticateWebmail, async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'Invalid IDs provided' });
+
+        await EmailMessage.deleteMany({
+            _id: { $in: ids },
+            mailbox_id: req.user.mailbox_id
+        });
+
+        res.json({ message: 'Messages deleted' });
+    } catch (err) {
+        logger.error('Batch Delete Error:', err);
+        res.status(500).json({ error: 'Failed to delete messages' });
+    }
+});
+
+// Delete Single Message
 router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
   try {
     const msg = await EmailMessage.findOneAndDelete({
