@@ -26,9 +26,6 @@ const DnsConfigModal = ({ domain, status, checking, onClose, onRefresh }: Props)
   };
 
   const getSpfValue = () => {
-    if (status?.server_ip) {
-        return `v=spf1 ip4:${status.server_ip} ~all`;
-    }
     return `v=spf1 mx ~all`;
   };
 
@@ -153,7 +150,7 @@ const DnsConfigModal = ({ domain, status, checking, onClose, onRefresh }: Props)
                                    return null;
                                })()}
                                <div className="mt-1 text-[10px] text-gray-400">
-                                   Explicitly authorizes IP {status?.server_ip || '...'}
+                                   Authorizes servers listed in MX records to send email.
                                </div>
                            </div>
                         } 
