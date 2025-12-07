@@ -41,6 +41,8 @@ export interface DnsStatus {
   dmarc: boolean;
   dkim: boolean;
   found_mx?: string[];
+  found_a?: string[];
+  found_txt?: string[];
 }
 
 declare global {

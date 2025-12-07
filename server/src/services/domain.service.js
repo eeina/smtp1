@@ -79,34 +79,37 @@ const getDnsStatus = async (domainName, token) => {
     spf: false,
     dmarc: false,
     dkim: false,
-    found_mx: []
+    found_mx: [],
+    found_a: [],
+    found_txt: []
   };
 
   try {
-    // 1. Root TXT (Verification & SPF)
+    // 1. Root TXT (Verification, SPF, DMARC, DKIM often in TXT)
     // We catch errors individually to allow partial success
     let txtRecords = [];
     try {
       txtRecords = await dns.resolveTxt(domainName);
+      status.found_txt = txtRecords.map(c => c.join(''));
     } catch (e) { /* ignore */ }
     
-    const flatTxt = txtRecords.map(c => c.join(''));
-    status.verification = flatTxt.some(r => r.includes(token));
-    status.spf = flatTxt.some(r => r.toLowerCase().includes('v=spf1'));
+    status.verification = status.found_txt.some(r => r.includes(token));
+    status.spf = status.found_txt.some(r => r.toLowerCase().includes('v=spf1'));
 
     // 2. A Record (mail.domain)
     try {
       const aRecords = await dns.resolve4(`mail.${domainName}`);
+      status.found_a = aRecords;
       status.a_record = aRecords.length > 0;
     } catch (e) { /* ignore */ }
 
     // 3. MX Record
     try {
       const mxRecords = await dns.resolveMx(domainName);
-      // Valid if MX records exist. Ideally should point to mail.domainName
+      status.found_mx = mxRecords.map(r => `${r.priority} ${r.exchange}`);
+      // Valid if MX records exist and at least one points to mail.domainName
       // We check if any exchange contains 'mail.' or matches the A-record host
       status.mx = mxRecords.length > 0 && mxRecords.some(r => r.exchange && r.exchange.includes('mail.'));
-      status.found_mx = mxRecords.map(r => `${r.priority} ${r.exchange}`);
     } catch (e) { /* ignore */ }
 
     // 4. DMARC (_dmarc.domain)

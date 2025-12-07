@@ -355,13 +355,13 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
               <div className="absolute inset-0 bg-gray-600 opacity-75" onClick={() => setViewDnsDomain(null)}></div>
             </div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-xl leading-6 font-bold text-gray-900">DNS Configuration: {viewDnsDomain.name}</h3>
                     <p className="text-sm text-gray-500 mt-1">
-                      Add these records to your domain's DNS settings. Status updates automatically.
+                      Add these records to your domain's DNS settings.
                     </p>
                   </div>
                   <button 
@@ -379,7 +379,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                       <tr>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-16">Type</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-16">Host</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value / Detected</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-24">Status</th>
                       </tr>
                     </thead>
@@ -418,18 +418,19 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                                <button onClick={() => handleCopy(`mail.${viewDnsDomain.name}`)} className="text-blue-600 text-xs shrink-0">Copy</button>
                              </div>
                              
-                             {/* SHOW FOUND MX RECORDS IF ERROR */}
-                             {dnsStatus?.found_mx && dnsStatus.found_mx.length > 0 && !dnsStatus.mx && (
-                                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
-                                   <strong>Current Invalid Records Found:</strong>
-                                   <ul className="list-disc pl-4 mt-1">
-                                      {dnsStatus.found_mx.map((rec, i) => (
-                                          <li key={i}>{rec}</li>
+                             {/* SHOW FOUND MX RECORDS */}
+                             {dnsStatus?.found_mx && dnsStatus.found_mx.length > 0 ? (
+                                <div className="mt-2 pt-2 border-t border-gray-100">
+                                   <div className="text-[10px] uppercase font-bold text-gray-400">Detected Records (Delete Red ones):</div>
+                                   <ul className="text-xs list-disc pl-4 mt-1">
+                                      {dnsStatus.found_mx.map((mx, i) => (
+                                          <li key={i} className={mx.includes('mail.' + viewDnsDomain.name) ? 'text-green-600 font-bold' : 'text-red-600'}>
+                                             {mx} {mx.includes('mail.' + viewDnsDomain.name) ? '✓' : '✖'}
+                                          </li>
                                       ))}
                                    </ul>
-                                   <div className="mt-1 font-bold">Please delete these at your registrar!</div>
                                 </div>
-                             )}
+                             ) : null}
                            </div>
                          </td>
                          <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.mx} /></td>
@@ -443,6 +444,20 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                              <span>v=spf1 mx ~all</span>
                              <button onClick={() => handleCopy('v=spf1 mx ~all')} className="text-blue-600 text-xs shrink-0">Copy</button>
                            </div>
+                           
+                           {/* SPF WARNING */}
+                           {(() => {
+                               const spfs = dnsStatus?.found_txt?.filter(t => t.toLowerCase().includes('v=spf1')) || [];
+                               if (spfs.length > 1) return (
+                                 <div className="mt-2 p-1 bg-red-50 text-red-600 text-xs border border-red-100 rounded">
+                                   <strong>Error: Multiple SPF records found!</strong>
+                                   <ul className="list-disc pl-4 mt-1">
+                                      {spfs.map((s,i) => <li key={i}>{s}</li>)}
+                                   </ul>
+                                 </div>
+                               );
+                               return null;
+                           })()}
                          </td>
                          <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.spf} /></td>
                       </tr>
@@ -477,6 +492,20 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                     </tbody>
                   </table>
                 </div>
+
+                {/* Raw Diagnostics */}
+                {dnsStatus && (
+                    <div className="mt-6 border-t pt-4">
+                        <h4 className="text-sm font-bold text-gray-800 mb-2">Diagnostic Data (Raw Detected Records)</h4>
+                        <div className="bg-gray-800 rounded p-3 text-xs text-green-400 font-mono overflow-auto max-h-40">
+                             <div className="mb-2 text-gray-400"># A Records (mail.{viewDnsDomain.name})</div>
+                             {dnsStatus.found_a?.length ? dnsStatus.found_a.map((r,i) => <div key={'a'+i}>{r}</div>) : <div className="text-gray-500">None</div>}
+                             
+                             <div className="mt-2 mb-2 text-gray-400"># TXT Records (@)</div>
+                             {dnsStatus.found_txt?.length ? dnsStatus.found_txt.map((r,i) => <div key={'txt'+i} className="mb-1">{r}</div>) : <div className="text-gray-500">None</div>}
+                        </div>
+                    </div>
+                )}
               </div>
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" onClick={() => setViewDnsDomain(null)} className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
