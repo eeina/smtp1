@@ -15,6 +15,7 @@ const domainRoutes = require('./src/routes/domains');
 const mailboxRoutes = require('./src/routes/mailboxes');
 const webmailRoutes = require('./src/routes/webmail');
 const systemRoutes = require('./src/routes/system');
+const unifiedAuthRoutes = require('./src/routes/unifiedAuth');
 
 const app = express();
 
@@ -55,7 +56,8 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => logger.error('MongoDB Connection Error:', err));
 
 // --- MOUNT ROUTES ---
-app.use('/api/auth', clientAuthRoutes);
+app.use('/api/auth', clientAuthRoutes); // Keep for legacy or specific client endpoints if needed
+app.use('/api/login', unifiedAuthRoutes); // New Unified Login
 app.use('/api/account', accountRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/mailboxes', mailboxRoutes);

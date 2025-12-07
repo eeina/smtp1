@@ -4,12 +4,11 @@ import Spinner from '../components/Spinner';
 import { User } from '../types';
 
 interface AuthViewProps {
-  role: 'client' | 'mailbox';
   onSuccess: (user: User) => void;
   onBack: () => void;
 }
 
-const AuthView = ({ role, onSuccess, onBack }: AuthViewProps) => {
+const AuthView = ({ onSuccess, onBack }: AuthViewProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,22 +20,18 @@ const AuthView = ({ role, onSuccess, onBack }: AuthViewProps) => {
     setLoading(true);
 
     try {
-      const endpoint = role === 'client' 
-        ? '/api/auth/login'
-        : '/api/webmail/login';
+      // Use unified login endpoint
+      const res = await api.post('/api/login', { email, password });
+
+      const { token, role, email: userEmail, company_name } = res.data;
       
-      const payload = { email, password };
-
-      const res = await api.post(endpoint, payload);
-
-      const token = res.data.token;
       localStorage.setItem('smtp_token', token);
       
       onSuccess({
-        email: res.data.client?.email || res.data.email,
-        company_name: res.data.client?.company_name,
+        email: userEmail,
+        company_name: company_name,
         token,
-        role
+        role: role // 'client' or 'mailbox'
       });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Authentication failed');
@@ -49,10 +44,10 @@ const AuthView = ({ role, onSuccess, onBack }: AuthViewProps) => {
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          {role === 'client' ? 'Admin Console' : 'Webmail Login'}
+          Sign In
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          {role === 'client' ? 'Sign in to manage your mail server' : 'Access your inbox'}
+          Access your Admin Dashboard or Webmail
         </p>
       </div>
 

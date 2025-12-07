@@ -6,17 +6,24 @@ import WebmailView from './views/WebmailView';
 import { User } from './types';
 
 export default function App() {
-  const [view, setView] = useState<'landing' | 'client-login' | 'webmail-login' | 'client-dashboard' | 'webmail-dashboard'>('landing');
+  const [view, setView] = useState<'landing' | 'login' | 'client-dashboard' | 'webmail-dashboard'>('landing');
   const [user, setUser] = useState<User | null>(null);
 
   // Check auth on load
   useEffect(() => {
     const token = localStorage.getItem('smtp_token');
     const role = localStorage.getItem('smtp_role');
-    // Note: In a real app we would decode the token to get the user or verify via API.
-    // For this prototype, we will just clear if no token.
-    if (!token) {
-      setView('landing');
+    
+    // In a real app we would verify token validity with backend here
+    if (token && role) {
+        if (role === 'client') setView('client-dashboard');
+        else if (role === 'mailbox') setView('webmail-dashboard');
+        
+        // We need to re-fetch user details, but for now we rely on re-login or basic persistence 
+        // For prototype, we might miss user details on refresh unless we decode token or fetch profile
+        // Let's force re-login if we don't have user object for safety in this demo
+    } else {
+        setView('landing');
     }
   }, []);
 
@@ -43,12 +50,8 @@ export default function App() {
     <>
       {view === 'landing' && <LandingView onNavigate={(v) => setView(v as any)} />}
       
-      {view === 'client-login' && (
-        <AuthView role="client" onSuccess={handleLoginSuccess} onBack={() => setView('landing')} />
-      )}
-      
-      {view === 'webmail-login' && (
-        <AuthView role="mailbox" onSuccess={handleLoginSuccess} onBack={() => setView('landing')} />
+      {view === 'login' && (
+        <AuthView onSuccess={handleLoginSuccess} onBack={() => setView('landing')} />
       )}
       
       {view === 'client-dashboard' && user && (
