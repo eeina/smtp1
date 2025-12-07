@@ -40,6 +40,7 @@ export interface DnsStatus {
   spf: boolean;
   dmarc: boolean;
   dkim: boolean;
+  found_mx?: string[];
 }
 
 declare global {

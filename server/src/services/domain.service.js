@@ -78,7 +78,8 @@ const getDnsStatus = async (domainName, token) => {
     mx: false,
     spf: false,
     dmarc: false,
-    dkim: false
+    dkim: false,
+    found_mx: []
   };
 
   try {
@@ -105,6 +106,7 @@ const getDnsStatus = async (domainName, token) => {
       // Valid if MX records exist. Ideally should point to mail.domainName
       // We check if any exchange contains 'mail.' or matches the A-record host
       status.mx = mxRecords.length > 0 && mxRecords.some(r => r.exchange && r.exchange.includes('mail.'));
+      status.found_mx = mxRecords.map(r => `${r.priority} ${r.exchange}`);
     } catch (e) { /* ignore */ }
 
     // 4. DMARC (_dmarc.domain)

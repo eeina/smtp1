@@ -412,9 +412,24 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                          <td className="px-3 py-2 font-mono font-bold">MX</td>
                          <td className="px-3 py-2 font-mono">@</td>
                          <td className="px-3 py-2 font-mono break-all text-gray-600">
-                           <div className="flex items-center justify-between">
-                             <span>mail.{viewDnsDomain.name} (Priority 10)</span>
-                             <button onClick={() => handleCopy(`mail.${viewDnsDomain.name}`)} className="text-blue-600 text-xs shrink-0">Copy</button>
+                           <div className="flex flex-col space-y-1">
+                             <div className="flex items-center justify-between">
+                               <span>mail.{viewDnsDomain.name} (Priority 10)</span>
+                               <button onClick={() => handleCopy(`mail.${viewDnsDomain.name}`)} className="text-blue-600 text-xs shrink-0">Copy</button>
+                             </div>
+                             
+                             {/* SHOW FOUND MX RECORDS IF ERROR */}
+                             {dnsStatus?.found_mx && dnsStatus.found_mx.length > 0 && !dnsStatus.mx && (
+                                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                                   <strong>Current Invalid Records Found:</strong>
+                                   <ul className="list-disc pl-4 mt-1">
+                                      {dnsStatus.found_mx.map((rec, i) => (
+                                          <li key={i}>{rec}</li>
+                                      ))}
+                                   </ul>
+                                   <div className="mt-1 font-bold">Please delete these at your registrar!</div>
+                                </div>
+                             )}
                            </div>
                          </td>
                          <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.mx} /></td>
