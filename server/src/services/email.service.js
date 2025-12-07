@@ -19,7 +19,7 @@ const extractEmail = (fullAddress) => {
 /**
  * Helper: Send email to external server
  */
-const deliverExternal = async (senderEmail, recipientEmail, subject, text, html) => {
+const deliverExternal = async (senderEmail, recipientEmail, subject, text, html, options = {}) => {
   try {
     const cleanRecipient = extractEmail(recipientEmail);
     const cleanSender = extractEmail(senderEmail);
@@ -86,9 +86,12 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
     await transporter.sendMail({
       from: senderEmail, 
       to: recipientEmail,
+      cc: options.cc,
+      bcc: options.bcc,
       subject: subject,
       text: text,
-      html: html
+      html: html,
+      attachments: options.attachments
     });
     
     logger.info(`External Delivery Success: ${cleanRecipient} (HELO: ${heloName})`);
@@ -101,12 +104,19 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
 
 /**
  * Delivers an email (System or User) handling both local and external recipients.
+ * @param {string} from 
+ * @param {string} to 
+ * @param {string} subject 
+ * @param {string} text 
+ * @param {string} html 
+ * @param {object} options - { cc, bcc, attachments: [{filename, content, contentType}] }
  */
-const sendEmail = async (from, to, subject, text, html) => {
+const sendEmail = async (from, to, subject, text, html, options = {}) => {
     try {
+        // Main recipient
         const cleanTo = extractEmail(to).toLowerCase().trim();
         
-        // Check if local (Case Insensitive)
+        // Handle local delivery check
         const recipientMailbox = await Mailbox.findOne({ email: cleanTo });
         
         if (recipientMailbox) {
@@ -116,9 +126,11 @@ const sendEmail = async (from, to, subject, text, html) => {
                 direction: 'inbound',
                 from: extractEmail(from), // Store clean email in DB for consistency
                 to: cleanTo,
+                cc: options.cc,
                 subject: subject || '',
                 text_body: text || '',
                 html_body: html || '',
+                has_attachments: options.attachments && options.attachments.length > 0,
                 folder: 'inbox',
                 is_read: false
             });
@@ -126,7 +138,7 @@ const sendEmail = async (from, to, subject, text, html) => {
             return true;
         } else {
             // --- EXTERNAL DELIVERY ---
-            return await deliverExternal(from, to, subject, text, html);
+            return await deliverExternal(from, to, subject, text, html, options);
         }
     } catch (err) {
         logger.error('Email Service Error:', err);

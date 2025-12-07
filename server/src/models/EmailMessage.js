@@ -19,6 +19,14 @@ const emailMessageSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  cc: {
+    type: String,
+    default: ''
+  },
+  bcc: {
+    type: String,
+    default: ''
+  },
   subject: {
     type: String,
     default: ''
@@ -30,6 +38,10 @@ const emailMessageSchema = new mongoose.Schema({
   html_body: {
     type: String,
     default: ''
+  },
+  has_attachments: {
+    type: Boolean,
+    default: false
   },
   is_read: {
     type: Boolean,
