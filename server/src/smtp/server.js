@@ -3,6 +3,7 @@ const { simpleParser } = require('mailparser');
 const bcrypt = require('bcryptjs');
 const Mailbox = require('../models/Mailbox');
 const EmailMessage = require('../models/EmailMessage');
+const emailService = require('../services/email.service');
 const logger = require('../config/logger');
 
 // Authenticate user against Mailbox database for Port 587
@@ -22,7 +23,8 @@ const onAuth = async (auth, session, callback) => {
     session.user = {
       _id: mailbox._id,
       email: mailbox.email,
-      domain_id: mailbox.domain_id
+      domain_id: mailbox.domain_id,
+      name: `${mailbox.first_name || ''} ${mailbox.last_name || ''}`.trim()
     };
     
     callback(null, { user: mailbox.email });
@@ -67,7 +69,7 @@ const onData = (stream, session, callback) => {
 
     try {
       const { from, to, subject, text, html } = parsed;
-      const fromAddress = from ? from.text : '';
+      const fromAddress = from ? from.text : ''; // Keeps "Name <email>" if provided by client
       
       // Handle To addresses (can be array or object)
       const toAddressStr = Array.isArray(to) 
@@ -75,8 +77,9 @@ const onData = (stream, session, callback) => {
         : (to ? to.text : '');
 
       if (session.user) {
-        // --- OUTBOUND ---
-        // Save to Sender's 'Sent' folder
+        // --- OUTBOUND (Authenticated) ---
+        
+        // 1. Save to Sender's 'Sent' folder
         await EmailMessage.create({
           mailbox_id: session.user._id,
           direction: 'outbound',
@@ -88,10 +91,19 @@ const onData = (stream, session, callback) => {
           folder: 'sent',
           is_read: true
         });
-        logger.info(`OUTBOUND saved for ${session.user.email}`);
+        logger.info(`OUTBOUND saved to DB for ${session.user.email}`);
+
+        // 2. DELIVER THE EMAIL (Relay)
+        const recipients = session.envelope.rcptTo.map(r => r.address);
+        for (const recipient of recipients) {
+             // emailService.sendEmail handles routing:
+             // - If recipient is local -> saves to their Inbox
+             // - If recipient is external -> uses MX lookup & sends via Internet
+             await emailService.sendEmail(fromAddress, recipient, subject, text, html);
+        }
 
       } else {
-        // --- INBOUND ---
+        // --- INBOUND (Internet/Guest) ---
         // Save to EACH valid local Recipient's 'Inbox'
         // session.envelope.rcptTo contains validated recipients from onRcptTo
         const recipients = session.envelope.rcptTo;
@@ -130,7 +142,7 @@ const server25 = new SMTPServer({
   disabledCommands: ['STARTTLS'],
   onRcptTo,
   onData,
-  logger: false // Use custom logger
+  logger: false 
 });
 
 // Server for Port 587 (Submission, Auth Required)

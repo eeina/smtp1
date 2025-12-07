@@ -19,7 +19,13 @@ router.post('/login', async (req, res) => {
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign({ mailbox_id: mailbox._id, email: mailbox.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
-    res.json({ token, email: mailbox.email });
+    
+    res.json({ 
+        token, 
+        email: mailbox.email,
+        first_name: mailbox.first_name,
+        last_name: mailbox.last_name
+    });
   } catch (err) {
     logger.error('Webmail Login Error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -33,6 +39,8 @@ router.get('/profile', authenticateWebmail, async (req, res) => {
         if(!mailbox) return res.status(404).json({error: "Mailbox not found"});
         res.json({
             email: mailbox.email,
+            first_name: mailbox.first_name,
+            last_name: mailbox.last_name,
             recovery_email: mailbox.recovery_email
         });
     } catch(err) {
@@ -79,6 +87,16 @@ router.post('/send', authenticateWebmail, async (req, res) => {
     const senderMailboxId = req.user.mailbox_id;
     const senderEmail = req.user.email;
 
+    // Fetch full mailbox details to get Name
+    const sender = await Mailbox.findById(senderMailboxId);
+    
+    // Construct Friendly Name Header: "John Doe" <john@example.com>
+    let fromHeader = senderEmail;
+    if (sender && (sender.first_name || sender.last_name)) {
+        const fullName = `${sender.first_name || ''} ${sender.last_name || ''}`.trim();
+        fromHeader = `"${fullName}" <${senderEmail}>`;
+    }
+
     // 1. Save to Sender's Sent Folder
     const htmlContent = body ? body.replace(/\n/g, '<br>') : '';
     const safeHtml = `<div style="font-family: sans-serif;">${htmlContent}</div>`;
@@ -86,7 +104,7 @@ router.post('/send', authenticateWebmail, async (req, res) => {
     await EmailMessage.create({
       mailbox_id: senderMailboxId,
       direction: 'outbound',
-      from: senderEmail,
+      from: fromHeader,
       to,
       subject: subject || '',
       text_body: body || '',
@@ -99,7 +117,8 @@ router.post('/send', authenticateWebmail, async (req, res) => {
     const recipients = to.split(/[;,]+/).map(r => r.trim()).filter(r => r);
 
     for (const recipientEmail of recipients) {
-      emailService.sendEmail(senderEmail, recipientEmail, subject, body, safeHtml);
+      // Pass the friendly fromHeader here
+      await emailService.sendEmail(fromHeader, recipientEmail, subject, body, safeHtml);
     }
 
     res.json({ message: 'Email sent successfully' });

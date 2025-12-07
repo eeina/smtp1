@@ -24,10 +24,10 @@ router.get('/', authenticateClient, async (req, res) => {
   }
 });
 
-// Update Mailbox (Password / Quota / Recovery Email)
+// Update Mailbox (Password / Quota / Recovery Email / Names)
 router.patch('/:id', authenticateClient, async (req, res) => {
   try {
-    const { password, quota_bytes, recovery_email } = req.body;
+    const { password, quota_bytes, recovery_email, first_name, last_name } = req.body;
     
     const mailbox = await Mailbox.findById(req.params.id);
     if (!mailbox) return res.status(404).json({ error: 'Mailbox not found' });
@@ -42,13 +42,10 @@ router.patch('/:id', authenticateClient, async (req, res) => {
         mailbox.password_hash = await bcrypt.hash(password, salt);
     }
 
-    if (quota_bytes !== undefined) {
-        mailbox.quota_bytes = quota_bytes;
-    }
-
-    if (recovery_email !== undefined) {
-        mailbox.recovery_email = recovery_email.trim().toLowerCase();
-    }
+    if (quota_bytes !== undefined) mailbox.quota_bytes = quota_bytes;
+    if (recovery_email !== undefined) mailbox.recovery_email = recovery_email.trim().toLowerCase();
+    if (first_name !== undefined) mailbox.first_name = first_name.trim();
+    if (last_name !== undefined) mailbox.last_name = last_name.trim();
 
     await mailbox.save();
     

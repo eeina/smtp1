@@ -12,6 +12,8 @@ router.get('/profile', authenticateClient, async (req, res) => {
         if(!client) return res.status(404).json({error: "Client not found"});
         res.json({
             email: client.email,
+            first_name: client.first_name,
+            last_name: client.last_name,
             company_name: client.company_name,
             recovery_email: client.recovery_email
         });
@@ -21,10 +23,10 @@ router.get('/profile', authenticateClient, async (req, res) => {
     }
 });
 
-// Update Profile (Email, Company Name, Recovery Email)
+// Update Profile (Email, Company Name, Recovery Email, Names)
 router.put('/profile', authenticateClient, async (req, res) => {
   try {
-    const { email, company_name, recovery_email } = req.body;
+    const { email, company_name, recovery_email, first_name, last_name } = req.body;
     const client = await Client.findById(req.user.client_id);
     
     if (!client) return res.status(404).json({ error: 'Client not found' });
@@ -38,6 +40,8 @@ router.put('/profile', authenticateClient, async (req, res) => {
 
     if (company_name !== undefined) client.company_name = company_name;
     if (recovery_email !== undefined) client.recovery_email = recovery_email.trim().toLowerCase();
+    if (first_name !== undefined) client.first_name = first_name.trim();
+    if (last_name !== undefined) client.last_name = last_name.trim();
 
     await client.save();
     
@@ -46,6 +50,8 @@ router.put('/profile', authenticateClient, async (req, res) => {
         message: 'Profile updated successfully', 
         user: { 
             email: client.email, 
+            first_name: client.first_name,
+            last_name: client.last_name,
             company_name: client.company_name,
             recovery_email: client.recovery_email 
         } 

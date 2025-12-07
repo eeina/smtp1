@@ -14,6 +14,8 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
   
   // Profile State
   const [email, setEmail] = useState(user.email);
+  const [firstName, setFirstName] = useState(user.first_name || '');
+  const [lastName, setLastName] = useState(user.last_name || '');
   const [companyName, setCompanyName] = useState(user.company_name || '');
   const [recoveryEmail, setRecoveryEmail] = useState(user.recovery_email || '');
   const [profileLoading, setProfileLoading] = useState(false);
@@ -75,7 +77,13 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
     setProfileMsg({ type: '', text: '' });
     
     try {
-        const res = await api.put('/api/account/profile', { email, company_name: companyName, recovery_email: recoveryEmail });
+        const res = await api.put('/api/account/profile', { 
+            email, 
+            company_name: companyName, 
+            recovery_email: recoveryEmail,
+            first_name: firstName,
+            last_name: lastName
+        });
         onUpdate(res.data.user);
         setProfileMsg({ type: 'success', text: 'Profile updated successfully' });
     } catch (err: any) {
@@ -156,6 +164,26 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
                             {profileMsg.text}
                         </div>
                     )}
+                    <div className="grid grid-cols-2 gap-3">
+                         <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">First Name</label>
+                            <input 
+                                type="text" 
+                                className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                value={firstName}
+                                onChange={e => setFirstName(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Last Name</label>
+                            <input 
+                                type="text" 
+                                className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                value={lastName}
+                                onChange={e => setLastName(e.target.value)}
+                            />
+                        </div>
+                    </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Email Address</label>
                         <input 

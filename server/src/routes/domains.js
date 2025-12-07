@@ -112,7 +112,7 @@ router.get('/', authenticateClient, async (req, res) => {
 // Create Mailbox for Domain
 router.post('/:id/mailboxes', authenticateClient, async (req, res) => {
   try {
-    const { email, password, quota_bytes, recovery_email } = req.body;
+    const { email, password, quota_bytes, recovery_email, first_name, last_name } = req.body;
     
     // Verify domain ownership
     const domain = await Domain.findOne({ _id: req.params.id, client_id: req.user.client_id });
@@ -132,7 +132,9 @@ router.post('/:id/mailboxes', authenticateClient, async (req, res) => {
       email,
       password_hash,
       quota_bytes: quota_bytes || 1073741824,
-      recovery_email: recovery_email ? recovery_email.trim().toLowerCase() : undefined
+      recovery_email: recovery_email ? recovery_email.trim().toLowerCase() : undefined,
+      first_name: first_name ? first_name.trim() : undefined,
+      last_name: last_name ? last_name.trim() : undefined
     });
 
     res.status(201).json({ message: 'Mailbox created', mailbox_id: mailbox._id });

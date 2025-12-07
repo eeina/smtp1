@@ -6,6 +6,14 @@ const mailboxSchema = new mongoose.Schema({
     ref: 'Domain',
     required: true
   },
+  first_name: {
+    type: String,
+    trim: true
+  },
+  last_name: {
+    type: String,
+    trim: true
+  },
   email: {
     type: String,
     required: true,
