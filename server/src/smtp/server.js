@@ -36,18 +36,26 @@ const onAuth = async (auth, session, callback) => {
 
 // Validate Recipient
 // If Authenticated: Allow any recipient (Outbound)
+// If Localhost: Allow (System Notifications)
 // If Guest: Recipient must be a local Mailbox (Inbound)
 const onRcptTo = async (address, session, callback) => {
   try {
-    // Outbound (Authenticated User)
+    // 1. Allow Authenticated Users (Outbound)
     if (session.user) {
       return callback(); 
     }
 
-    // Inbound (Guest/Internet)
-    // Check if recipient exists in our system
+    // 2. Allow Localhost / Internal System (Password Resets, Alerts)
+    // This prevents "550 Relaying Denied" when the app sends to itself
+    const remoteIP = session.remoteAddress;
+    if (remoteIP === '127.0.0.1' || remoteIP === '::1' || remoteIP === '::ffff:127.0.0.1') {
+        return callback();
+    }
+
+    // 3. Inbound (Guest/Internet) -> Check if recipient exists locally
     const mailbox = await Mailbox.findOne({ email: address.address });
     if (!mailbox) {
+      // Reject unknown recipients to prevent backscatter/spam
       return callback(new Error('550 Relaying denied'));
     }
 
@@ -69,7 +77,7 @@ const onData = (stream, session, callback) => {
 
     try {
       const { from, to, subject, text, html } = parsed;
-      const fromAddress = from ? from.text : ''; // Keeps "Name <email>" if provided by client
+      const fromAddress = from ? from.text : ''; 
       
       // Handle To addresses (can be array or object)
       const toAddressStr = Array.isArray(to) 
@@ -77,7 +85,7 @@ const onData = (stream, session, callback) => {
         : (to ? to.text : '');
 
       if (session.user) {
-        // --- OUTBOUND (Authenticated) ---
+        // --- OUTBOUND (Authenticated User) ---
         
         // 1. Save to Sender's 'Sent' folder
         await EmailMessage.create({
@@ -96,18 +104,15 @@ const onData = (stream, session, callback) => {
         // 2. DELIVER THE EMAIL (Relay)
         const recipients = session.envelope.rcptTo.map(r => r.address);
         for (const recipient of recipients) {
-             // emailService.sendEmail handles routing:
-             // - If recipient is local -> saves to their Inbox
-             // - If recipient is external -> uses MX lookup & sends via Internet
              await emailService.sendEmail(fromAddress, recipient, subject, text, html);
         }
 
       } else {
-        // --- INBOUND (Internet/Guest) ---
+        // --- INBOUND (Internet or Localhost) ---
         // Save to EACH valid local Recipient's 'Inbox'
-        // session.envelope.rcptTo contains validated recipients from onRcptTo
         const recipients = session.envelope.rcptTo;
         
+        let deliveredCount = 0;
         for (const recipient of recipients) {
           const mailbox = await Mailbox.findOne({ email: recipient.address });
           if (mailbox) {
@@ -123,6 +128,10 @@ const onData = (stream, session, callback) => {
               is_read: false
             });
             logger.info(`INBOUND saved for ${mailbox.email}`);
+            deliveredCount++;
+          } else {
+             // If we allowed it in rcptTo (e.g. localhost) but user doesn't exist, we just drop it gracefully here.
+             logger.warn(`Dropped email for unknown user ${recipient.address} (allowed via whitelist)`);
           }
         }
       }
