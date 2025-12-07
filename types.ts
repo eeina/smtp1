@@ -28,6 +28,12 @@ export interface Mailbox {
   domain_id: { _id: string; name: string } | string;
 }
 
+export interface AttachmentMeta {
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
 export interface EmailMessage {
   _id: string;
   from: string;
@@ -38,6 +44,8 @@ export interface EmailMessage {
   folder: 'inbox' | 'sent';
   is_read: boolean;
   created_at: string;
+  has_attachments: boolean;
+  attachments?: AttachmentMeta[];
 }
 
 export interface DnsStatus {

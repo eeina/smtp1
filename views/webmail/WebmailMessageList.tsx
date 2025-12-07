@@ -102,7 +102,12 @@ const WebmailMessageList = (props: Props) => {
                          <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start mb-1">
                                 <span className={`text-sm truncate pr-2 ${!msg.is_read && props.view === 'inbox' ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{props.view === 'inbox' ? msg.from : `To: ${msg.to}`}</span>
-                                <span className={`text-[10px] whitespace-nowrap ${!msg.is_read && props.view === 'inbox' ? 'text-green-600 font-bold' : 'text-gray-400'}`}>{timeAgo(msg.created_at)}</span>
+                                <div className="flex items-center gap-1">
+                                    {msg.has_attachments && (
+                                        <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                    )}
+                                    <span className={`text-[10px] whitespace-nowrap ${!msg.is_read && props.view === 'inbox' ? 'text-green-600 font-bold' : 'text-gray-400'}`}>{timeAgo(msg.created_at)}</span>
+                                </div>
                             </div>
                             <div className={`text-sm mb-1 truncate ${!msg.is_read && props.view === 'inbox' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{msg.subject || '(No Subject)'}</div>
                             <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">{msg.text_body}</p>
