@@ -30,6 +30,7 @@ export interface EmailMessage {
   text_body: string;
   html_body: string;
   folder: 'inbox' | 'sent';
+  is_read: boolean;
   created_at: string;
 }
 

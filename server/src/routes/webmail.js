@@ -39,6 +39,23 @@ router.get('/messages', authenticateWebmail, async (req, res) => {
   }
 });
 
+// Delete Message
+router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
+  try {
+    const msg = await EmailMessage.findOneAndDelete({
+      _id: req.params.id,
+      mailbox_id: req.user.mailbox_id
+    });
+    
+    if (!msg) return res.status(404).json({ error: 'Message not found' });
+    
+    res.json({ message: 'Message deleted successfully' });
+  } catch (err) {
+    logger.error('Delete Message Error:', err);
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+});
+
 // Helper: Send email to external server
 const deliverExternal = async (senderEmail, recipientEmail, subject, text, html) => {
   try {
