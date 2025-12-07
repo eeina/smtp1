@@ -32,6 +32,32 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Change Password
+router.put('/password', authenticateWebmail, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const mailbox = await Mailbox.findById(req.user.mailbox_id);
+    if (!mailbox) return res.status(404).json({ error: 'Mailbox not found' });
+
+    const isMatch = await bcrypt.compare(currentPassword, mailbox.password_hash);
+    if (!isMatch) return res.status(400).json({ error: 'Incorrect current password' });
+
+    const salt = await bcrypt.genSalt(10);
+    mailbox.password_hash = await bcrypt.hash(newPassword, salt);
+    await mailbox.save();
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    logger.error('Webmail Password Update Error:', err);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
 // Get Webmail Profile
 router.get('/profile', authenticateWebmail, async (req, res) => {
     try {
@@ -184,58 +210,19 @@ router.post('/send', authenticateWebmail, async (req, res) => {
 
     // 4. Process Delivery
     const recipients = to.split(/[;,]+/).map(r => r.trim()).filter(r => r);
+    const ccRecipients = cc ? cc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : [];
+    const bccRecipients = bcc ? bcc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : [];
+    
+    // Combine all unique recipients to iterate over for delivery
+    // Note: We iterate because our `sendEmail` service handles internal vs external routing *per recipient*.
+    const allRecipients = new Set([...recipients, ...ccRecipients, ...bccRecipients]);
 
-    // Also collect CC and BCC for external delivery logic if needed, 
-    // but simplified loop here sends individually to ensure better deliverability/tracking per RCPT TO in basic SMTP logic.
-    // However, for correct header display, we pass the cc/bcc strings to the service options.
-    
-    // NOTE: In a true SMTP relay, we send one envelope to all recipients. 
-    // Here we iterate 'to' for individual processing logic in our service, 
-    // but we pass cc/bcc to `emailService` which handles `nodemailer` parameters.
-    
-    // Sending to "TO" recipients
-    for (const recipientEmail of recipients) {
+    for (const recipientEmail of allRecipients) {
       await emailService.sendEmail(fromHeader, recipientEmail, subject, plainText, safeHtml, {
         cc,
         bcc,
         attachments: processedAttachments
       });
-    }
-
-    // We also need to ensure CC and BCC recipients actually get the email if they aren't in the "TO" loop.
-    // A more robust implementation would unify all recipients into one delivery list.
-    // For this lightweight implementation, let's rely on the first loop if there is a 'to', 
-    // or specifically address cc/bcc if they are external.
-    
-    // If we want to be strictly correct with Nodemailer, we can call it ONCE with all recipients.
-    // However, our `sendEmail` service handles "Internal vs External" switching per recipient.
-    // So we should iterate ALL recipients.
-    
-    const allRecipients = new Set([
-        ...recipients,
-        ...(cc ? cc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : []),
-        ...(bcc ? bcc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : [])
-    ]);
-
-    // We only need to trigger the service for unique addresses NOT in the main 'to' loop we just did?
-    // Actually, `emailService.sendEmail` logic sends to *one specific recipient* (the 2nd arg).
-    // The `cc` and `bcc` options in 6th arg are just for HEADERS in that email.
-    // So we MUST iterate everyone.
-    
-    // To avoid sending duplicates to "To" list (processed above), let's refactor slightly:
-    // We already sent to 'to' list. Now send to others.
-    
-    const ccRecipients = cc ? cc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : [];
-    const bccRecipients = bcc ? bcc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : [];
-    
-    const secondaryRecipients = [...ccRecipients, ...bccRecipients];
-    
-    for (const recipientEmail of secondaryRecipients) {
-        await emailService.sendEmail(fromHeader, recipientEmail, subject, plainText, safeHtml, {
-            cc, // Include headers so they see who else is copied
-            // bcc headers are usually stripped by transport, but we pass them just in case
-            attachments: processedAttachments
-        });
     }
 
     res.json({ message: 'Email sent successfully' });

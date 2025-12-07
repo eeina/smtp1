@@ -79,6 +79,9 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
   const [selectedMsg, setSelectedMsg] = useState<EmailMessage | null>(null);
   const [view, setView] = useState<'inbox' | 'sent'>('inbox');
   
+  // Mobile Nav State
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   // Pagination & Bulk Selection
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -102,7 +105,13 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
 
   // Settings Modal State
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'config' | 'security'>('config');
   const [loadingMessages, setLoadingMessages] = useState(false);
+  
+  // Password Change State
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passLoading, setPassLoading] = useState(false);
 
   const fetchMessages = useCallback(async (isPolling = false) => {
     if (!isPolling) setLoadingMessages(true);
@@ -176,11 +185,9 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
     }
   };
 
-  // --- File Handling ---
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
         const filesArray = Array.from(e.target.files);
-        // Limit total size if needed, for now just allow
         setAttachments(prev => [...prev, ...filesArray]);
     }
   };
@@ -198,14 +205,12 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
     });
   };
 
-  // --- Editor Handlers ---
   const execCmd = (cmd: string, val?: string) => {
       document.execCommand(cmd, false, val);
       if(editorRef.current) editorRef.current.focus();
   };
 
   const handleInsertImage = () => {
-      // Simple prompt for now, could be improved with a file picker specifically for inline images
       const url = prompt("Enter Image URL:");
       if(url) execCmd('insertImage', url);
   };
@@ -218,7 +223,6 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
     const htmlBody = editorRef.current.innerHTML;
 
     try {
-      // Process attachments
       const attachmentPayload = await Promise.all(attachments.map(async (file) => ({
           filename: file.name,
           contentType: file.type,
@@ -265,12 +269,26 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setPassLoading(true);
+      try {
+          await api.put('/api/webmail/password', { currentPassword, newPassword });
+          addToast('Password updated successfully', 'success');
+          setCurrentPassword('');
+          setNewPassword('');
+      } catch (err: any) {
+          addToast(err.response?.data?.error || 'Failed to update password', 'error');
+      } finally {
+          setPassLoading(false);
+      }
+  };
+
   const handleReply = () => {
     if (!selectedMsg) return;
     const replyTo = view === 'inbox' ? selectedMsg.from : selectedMsg.to;
     const replySubject = selectedMsg.subject.startsWith('Re:') ? selectedMsg.subject : `Re: ${selectedMsg.subject}`;
     
-    // Simple blockquote for reply
     const quoteHtml = `<br><br><blockquote style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 5px; color: #666;">
         On ${new Date(selectedMsg.created_at).toLocaleString()}, <strong>${selectedMsg.from}</strong> wrote:<br>
         ${selectedMsg.html_body || selectedMsg.text_body}
@@ -280,11 +298,9 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
     setComposeSubject(replySubject);
     setShowCompose(true);
     
-    // Need to wait for modal to render before setting innerHTML
     setTimeout(() => {
         if(editorRef.current) {
             editorRef.current.innerHTML = quoteHtml;
-            // Focus at start
             const range = document.createRange();
             const sel = window.getSelection();
             range.setStart(editorRef.current, 0);
@@ -329,7 +345,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
       
-      {/* SIDEBAR (Unchanged) */}
+      {/* SIDEBAR (Desktop) */}
       <div className="w-64 bg-gray-900 flex flex-col flex-shrink-0 text-gray-300 hidden md:flex border-r border-gray-800">
         <div className="h-16 flex items-center px-6 border-b border-gray-800">
             <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center mr-3 text-white font-bold text-sm shadow-lg shadow-green-900/20">E</div>
@@ -371,10 +387,70 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
         </div>
       </div>
 
+      {/* MOBILE NAV DRAWER */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+            <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" onClick={() => setMobileMenuOpen(false)}></div>
+            <div className="relative flex-1 flex flex-col max-w-xs w-full bg-gray-900 text-white animate-in slide-in-from-left duration-200">
+                <div className="h-16 flex items-center px-6 border-b border-gray-800 justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold">E</div>
+                        <span className="font-bold text-lg">Eeina</span>
+                    </div>
+                    <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div className="p-4 flex-1">
+                     <button 
+                        onClick={() => {
+                            setComposeTo('');
+                            setComposeSubject('');
+                            setAttachments([]);
+                            if(editorRef.current) editorRef.current.innerHTML = '';
+                            setShowCompose(true);
+                            setMobileMenuOpen(false);
+                        }}
+                        className="w-full flex items-center justify-center px-4 py-3 bg-white text-gray-900 rounded-xl shadow-sm hover:bg-green-50 mb-8 font-bold"
+                    >
+                        Compose
+                    </button>
+                    <nav className="space-y-2">
+                        <button onClick={() => { setView('inbox'); setSelectedMsg(null); setMobileMenuOpen(false); }} className={`w-full flex items-center px-4 py-3 rounded-xl transition-colors ${view === 'inbox' ? 'bg-gray-800 text-white' : 'text-gray-400'}`}>
+                            <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                            Inbox
+                        </button>
+                        <button onClick={() => { setView('sent'); setSelectedMsg(null); setMobileMenuOpen(false); }} className={`w-full flex items-center px-4 py-3 rounded-xl transition-colors ${view === 'sent' ? 'bg-gray-800 text-white' : 'text-gray-400'}`}>
+                            <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                            Sent
+                        </button>
+                    </nav>
+                </div>
+                <div className="p-4 border-t border-gray-800">
+                     <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold">{user.email.charAt(0).toUpperCase()}</div>
+                        <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-white truncate">{user.email}</p>
+                            <p className="text-xs text-gray-500">Connected</p>
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }} className="bg-gray-800 text-gray-300 py-2 rounded-lg text-sm border border-gray-700">Settings</button>
+                        <button onClick={onLogout} className="bg-gray-800 text-red-400 py-2 rounded-lg text-sm border border-gray-700">Logout</button>
+                     </div>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* MESSAGE LIST */}
       <div className={`${selectedMsg ? 'hidden md:flex' : 'flex'} w-full md:w-96 bg-white border-r border-gray-200 flex-col shadow-sm z-10`}>
         <div className="h-16 border-b border-gray-100 flex items-center justify-between px-4 bg-white sticky top-0 z-20">
             <div className="flex items-center gap-3">
+                {/* Mobile Hamburger */}
+                <button onClick={() => setMobileMenuOpen(true)} className="md:hidden text-gray-500 hover:bg-gray-100 p-2 rounded-lg">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
                 <h2 className="text-lg font-bold text-gray-900 capitalize">{view}</h2>
                 <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{totalMessages}</span>
             </div>
@@ -419,7 +495,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
         </div>
       </div>
 
-      {/* READING PANE (Unchanged) */}
+      {/* READING PANE */}
       <div className={`${selectedMsg ? 'flex' : 'hidden md:flex'} flex-1 bg-white flex-col h-full absolute md:relative inset-0 z-20`}>
         {selectedMsg ? (
             <>
@@ -455,7 +531,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
         )}
       </div>
 
-      {/* --- NEW COMPOSE MODAL --- */}
+      {/* COMPOSE MODAL */}
       {showCompose && (
         <div className="absolute inset-0 z-50 overflow-hidden flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/30 backdrop-blur-sm">
             <div className="bg-white w-full sm:max-w-3xl h-[95vh] sm:h-[85vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 duration-200 ring-1 ring-black/5">
@@ -468,8 +544,6 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
                 
                 <form onSubmit={handleSend} className="flex-1 flex flex-col min-h-0">
                     <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
-                        
-                        {/* Recipients */}
                         <div className="space-y-2">
                             <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
                                 <span className="text-sm font-semibold text-gray-500 w-10">To</span>
@@ -486,102 +560,34 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
                                     <button type="button" onClick={() => setShowBcc(!showBcc)} className="hover:text-gray-800 hover:underline">Bcc</button>
                                 </div>
                             </div>
-
-                            {showCc && (
-                                <div className="flex items-center gap-2 border-b border-gray-100 pb-2 animate-in fade-in slide-in-from-top-1">
-                                    <span className="text-sm font-semibold text-gray-500 w-10">Cc</span>
-                                    <input 
-                                        type="text" 
-                                        value={composeCc} 
-                                        onChange={e => setComposeCc(e.target.value)}
-                                        className="flex-1 outline-none text-sm text-gray-800"
-                                        placeholder="cc@example.com"
-                                    />
-                                </div>
-                            )}
-
-                            {showBcc && (
-                                <div className="flex items-center gap-2 border-b border-gray-100 pb-2 animate-in fade-in slide-in-from-top-1">
-                                    <span className="text-sm font-semibold text-gray-500 w-10">Bcc</span>
-                                    <input 
-                                        type="text" 
-                                        value={composeBcc} 
-                                        onChange={e => setComposeBcc(e.target.value)}
-                                        className="flex-1 outline-none text-sm text-gray-800"
-                                        placeholder="bcc@example.com"
-                                    />
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-                                <span className="text-sm font-semibold text-gray-500 w-10">Subject</span>
-                                <input 
-                                    type="text" 
-                                    value={composeSubject} 
-                                    onChange={e => setComposeSubject(e.target.value)}
-                                    className="flex-1 outline-none text-sm text-gray-800 font-medium"
-                                    placeholder="Subject"
-                                />
-                            </div>
+                            {showCc && <div className="flex items-center gap-2 border-b border-gray-100 pb-2 animate-in fade-in slide-in-from-top-1"><span className="text-sm font-semibold text-gray-500 w-10">Cc</span><input type="text" value={composeCc} onChange={e => setComposeCc(e.target.value)} className="flex-1 outline-none text-sm text-gray-800" placeholder="cc@example.com"/></div>}
+                            {showBcc && <div className="flex items-center gap-2 border-b border-gray-100 pb-2 animate-in fade-in slide-in-from-top-1"><span className="text-sm font-semibold text-gray-500 w-10">Bcc</span><input type="text" value={composeBcc} onChange={e => setComposeBcc(e.target.value)} className="flex-1 outline-none text-sm text-gray-800" placeholder="bcc@example.com"/></div>}
+                            <div className="flex items-center gap-2 border-b border-gray-100 pb-2"><span className="text-sm font-semibold text-gray-500 w-10">Subject</span><input type="text" value={composeSubject} onChange={e => setComposeSubject(e.target.value)} className="flex-1 outline-none text-sm text-gray-800 font-medium" placeholder="Subject"/></div>
                         </div>
-
-                        {/* Editor */}
                         <div className="flex flex-col h-full min-h-[300px] border border-gray-200 rounded-lg overflow-hidden bg-white">
                             <RichTextToolbar onCmd={execCmd} onImage={handleInsertImage} />
-                            <div 
-                                ref={editorRef}
-                                contentEditable
-                                className="flex-1 p-4 outline-none overflow-y-auto text-sm font-sans"
-                                style={{ minHeight: '200px' }}
-                            ></div>
+                            <div ref={editorRef} contentEditable className="flex-1 p-4 outline-none overflow-y-auto text-sm font-sans" style={{ minHeight: '200px' }}></div>
                         </div>
-                        
-                        {/* Attachments List */}
                         {attachments.length > 0 && (
                             <div className="flex flex-wrap gap-2 pt-2">
                                 {attachments.map((file, idx) => (
                                     <div key={idx} className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-xs text-gray-700 border border-gray-200">
                                         <svg className="w-3 h-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                                         <span className="max-w-[150px] truncate">{file.name}</span>
-                                        <button type="button" onClick={() => removeAttachment(idx)} className="hover:text-red-500">
-                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                        </button>
+                                        <button type="button" onClick={() => removeAttachment(idx)} className="hover:text-red-500"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
-
-                    {/* Footer */}
                     <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
                         <div className="flex items-center gap-3">
-                             {/* Hidden File Input */}
-                             <input 
-                                type="file" 
-                                multiple 
-                                ref={fileInputRef} 
-                                className="hidden" 
-                                onChange={handleFileSelect} 
-                             />
-                             <button 
-                                type="button" 
-                                onClick={() => fileInputRef.current?.click()}
-                                className="text-gray-500 hover:text-gray-900 hover:bg-gray-200 p-2 rounded-full transition-colors" 
-                                title="Attach File"
-                             >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                             </button>
+                             <input type="file" multiple ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
+                             <button type="button" onClick={() => fileInputRef.current?.click()} className="text-gray-500 hover:text-gray-900 hover:bg-gray-200 p-2 rounded-full transition-colors" title="Attach File"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg></button>
                         </div>
                         <div className="flex items-center gap-3">
                             <button type="button" onClick={() => setShowCompose(false)} className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">Discard</button>
-                            <button 
-                                type="submit" 
-                                disabled={sending}
-                                className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
-                            >
-                                {sending && <Spinner />}
-                                Send
-                            </button>
+                            <button type="submit" disabled={sending} className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm">{sending && <Spinner />} Send</button>
                         </div>
                     </div>
                 </form>
@@ -589,7 +595,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
         </div>
       )}
 
-      {/* Settings Modal (Unchanged) */}
+      {/* SETTINGS MODAL */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
@@ -599,16 +605,72 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
+                
+                <div className="flex border-b border-gray-100">
+                    <button 
+                        onClick={() => setSettingsTab('config')} 
+                        className={`flex-1 py-3 text-sm font-medium transition-colors ${settingsTab === 'config' ? 'text-green-600 border-b-2 border-green-600 bg-green-50/50' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Configuration
+                    </button>
+                    <button 
+                        onClick={() => setSettingsTab('security')} 
+                        className={`flex-1 py-3 text-sm font-medium transition-colors ${settingsTab === 'security' ? 'text-green-600 border-b-2 border-green-600 bg-green-50/50' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Security
+                    </button>
+                </div>
+
                 <div className="p-6">
-                    <div className="bg-green-50 text-green-800 p-4 rounded-xl text-sm mb-6 border border-green-100 flex gap-3">
-                        <svg className="w-5 h-5 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        <p>These settings allow you to connect external apps like printers or contact forms to <strong>send</strong> email through your account.</p>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-3 items-center text-sm"><span className="font-medium text-gray-500">SMTP Host</span><code className="col-span-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 block text-gray-800 font-mono select-all">{window.location.hostname}</code></div>
-                        <div className="grid grid-cols-3 items-center text-sm"><span className="font-medium text-gray-500">Port</span><code className="col-span-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 block text-gray-800 font-mono">587 (STARTTLS)</code></div>
-                        <div className="grid grid-cols-3 items-center text-sm"><span className="font-medium text-gray-500">Username</span><code className="col-span-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 block text-gray-800 font-mono select-all">{user.email}</code></div>
-                    </div>
+                    {settingsTab === 'config' && (
+                        <>
+                            <div className="bg-green-50 text-green-800 p-4 rounded-xl text-sm mb-6 border border-green-100 flex gap-3">
+                                <svg className="w-5 h-5 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <p>Use these settings to connect external apps.</p>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-3 items-center text-sm"><span className="font-medium text-gray-500">SMTP Host</span><code className="col-span-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 block text-gray-800 font-mono select-all">{window.location.hostname}</code></div>
+                                <div className="grid grid-cols-3 items-center text-sm"><span className="font-medium text-gray-500">Port</span><code className="col-span-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 block text-gray-800 font-mono">587 (STARTTLS)</code></div>
+                                <div className="grid grid-cols-3 items-center text-sm"><span className="font-medium text-gray-500">Username</span><code className="col-span-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 block text-gray-800 font-mono select-all">{user.email}</code></div>
+                            </div>
+                        </>
+                    )}
+
+                    {settingsTab === 'security' && (
+                        <form onSubmit={handleChangePassword} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Current Password</label>
+                                <input 
+                                    type="password" 
+                                    required 
+                                    className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                                    value={currentPassword}
+                                    onChange={e => setCurrentPassword(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">New Password</label>
+                                <input 
+                                    type="password" 
+                                    required 
+                                    minLength={6}
+                                    className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                                    value={newPassword}
+                                    onChange={e => setNewPassword(e.target.value)}
+                                />
+                                <p className="text-xs text-gray-400 mt-1">Must be at least 6 characters long</p>
+                            </div>
+                            <div className="pt-2">
+                                <button 
+                                    type="submit" 
+                                    disabled={passLoading}
+                                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition flex justify-center items-center"
+                                >
+                                    {passLoading ? <Spinner /> : 'Update Password'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
                 </div>
                 <div className="px-6 py-4 bg-gray-50 text-right"><button onClick={() => setShowSettings(false)} className="text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">Close</button></div>
             </div>
