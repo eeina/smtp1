@@ -21,7 +21,7 @@ const ServerInfoPanel = ({ onRunDiagnostics }: Props) => {
           className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-4 py-2 rounded-lg backdrop-blur-sm border border-white/10 transition-all"
         >
           <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          System Health
+          System Health & Spam Check
         </button>
       </div>
       

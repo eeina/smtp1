@@ -19,17 +19,20 @@ router.get('/logs', authenticateClient, async (req, res) => {
 // Run Server Diagnostics
 router.get('/diagnostics', authenticateClient, async (req, res) => {
     try {
-        const [dnsCheck, portCheck] = await Promise.all([
+        const [dnsCheck, portCheck, rdnsCheck] = await Promise.all([
             diagnosticService.checkDnsResolution(),
-            diagnosticService.checkOutboundPort25()
+            diagnosticService.checkOutboundPort25(),
+            diagnosticService.checkReverseDns()
         ]);
 
         res.json({
             dns: dnsCheck,
             port25: portCheck,
+            rdns: rdnsCheck,
             timestamp: new Date()
         });
     } catch(e) {
+        console.error(e);
         res.status(500).json({ error: 'Diagnostics failed to run' });
     }
 });
