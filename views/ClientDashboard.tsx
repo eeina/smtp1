@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { User, Domain, Mailbox } from '../types';
 
+interface DnsStatus {
+  verification: boolean;
+  a_record: boolean;
+  mx: boolean;
+  spf: boolean;
+  dmarc: boolean;
+}
+
 const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
@@ -15,6 +23,8 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
   
   // DNS View State
   const [viewDnsDomain, setViewDnsDomain] = useState<Domain | null>(null);
+  const [dnsStatus, setDnsStatus] = useState<DnsStatus | null>(null);
+  const [checkingDns, setCheckingDns] = useState(false);
 
   const refreshData = async () => {
     try {
@@ -79,6 +89,30 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
       btn.innerText = 'Copied!';
       setTimeout(() => btn.innerText = original, 2000);
     }
+  };
+
+  const openDnsModal = async (domain: Domain) => {
+    setViewDnsDomain(domain);
+    setDnsStatus(null);
+    checkDns(domain);
+  };
+
+  const checkDns = async (domain: Domain) => {
+    setCheckingDns(true);
+    try {
+      const res = await api.get(`/api/domains/${domain._id}/dns`);
+      setDnsStatus(res.data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setCheckingDns(false);
+    }
+  };
+
+  const StatusIcon = ({ ok }: { ok?: boolean }) => {
+    if (checkingDns && ok === undefined) return <span className="animate-pulse text-gray-400">...</span>;
+    if (ok) return <span className="text-green-500 font-bold">✓ OK</span>;
+    return <span className="text-red-500 font-bold text-xs">✖ Missing</span>;
   };
 
   return (
@@ -163,7 +197,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                           </button>
                         )}
                         <button 
-                          onClick={() => setViewDnsDomain(domain)}
+                          onClick={() => openDnsModal(domain)}
                           className="text-sm border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-50"
                         >
                           DNS Setup
@@ -249,56 +283,91 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <h3 className="text-xl leading-6 font-bold text-gray-900 mb-4">DNS Configuration: {viewDnsDomain.name}</h3>
-                <p className="text-sm text-gray-500 mb-4">
-                   Add these records to your domain's DNS settings (e.g., Namecheap, GoDaddy, Cloudflare) to verify ownership and enable sending/receiving.
-                </p>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl leading-6 font-bold text-gray-900">DNS Configuration: {viewDnsDomain.name}</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Add these records to your domain's DNS settings. Status updates automatically.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => checkDns(viewDnsDomain)} 
+                    disabled={checkingDns}
+                    className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                  >
+                    {checkingDns ? 'Checking...' : 'Refresh Status'}
+                  </button>
+                </div>
 
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200 border">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Host/Name</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-16">Type</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-16">Host</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
-                        <th className="px-3 py-2"></th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase w-24">Status</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200 text-sm">
                       {/* 1. VERIFICATION TXT */}
                       <tr>
-                        <td className="px-3 py-2 font-mono">TXT</td>
+                        <td className="px-3 py-2 font-mono font-bold">TXT</td>
                         <td className="px-3 py-2 font-mono">@</td>
-                        <td className="px-3 py-2 font-mono break-all text-gray-600">{viewDnsDomain.verification_token}</td>
-                        <td className="px-3 py-2"><button onClick={() => handleCopy(viewDnsDomain.verification_token)} className="text-blue-600 hover:underline">Copy</button></td>
+                        <td className="px-3 py-2 font-mono break-all text-gray-600">
+                          <div className="flex items-center justify-between">
+                            <span className="truncate mr-2">{viewDnsDomain.verification_token}</span>
+                            <button onClick={() => handleCopy(viewDnsDomain.verification_token)} className="text-blue-600 text-xs shrink-0">Copy</button>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.verification} /></td>
                       </tr>
                       {/* 2. A RECORD (Mail Server IP) */}
                       <tr>
-                         <td className="px-3 py-2 font-mono">A</td>
+                         <td className="px-3 py-2 font-mono font-bold">A</td>
                          <td className="px-3 py-2 font-mono">mail</td>
-                         <td className="px-3 py-2 font-mono break-all text-gray-600">Your Server IP</td>
-                         <td className="px-3 py-2"><span className="text-xs text-gray-400">Manual</span></td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">
+                           <div className="flex items-center justify-between">
+                             <span>[Your Server IP]</span>
+                           </div>
+                         </td>
+                         <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.a_record} /></td>
                       </tr>
                       {/* 3. MX RECORD */}
                       <tr>
-                         <td className="px-3 py-2 font-mono">MX</td>
+                         <td className="px-3 py-2 font-mono font-bold">MX</td>
                          <td className="px-3 py-2 font-mono">@</td>
-                         <td className="px-3 py-2 font-mono break-all text-gray-600">mail.{viewDnsDomain.name} (Priority 10)</td>
-                         <td className="px-3 py-2"><button onClick={() => handleCopy(`mail.${viewDnsDomain.name}`)} className="text-blue-600 hover:underline">Copy</button></td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">
+                           <div className="flex items-center justify-between">
+                             <span>mail.{viewDnsDomain.name} (Priority 10)</span>
+                             <button onClick={() => handleCopy(`mail.${viewDnsDomain.name}`)} className="text-blue-600 text-xs shrink-0">Copy</button>
+                           </div>
+                         </td>
+                         <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.mx} /></td>
                       </tr>
                        {/* 4. SPF */}
                        <tr>
-                         <td className="px-3 py-2 font-mono">TXT</td>
+                         <td className="px-3 py-2 font-mono font-bold">TXT</td>
                          <td className="px-3 py-2 font-mono">@</td>
-                         <td className="px-3 py-2 font-mono break-all text-gray-600">v=spf1 mx ~all</td>
-                         <td className="px-3 py-2"><button onClick={() => handleCopy('v=spf1 mx ~all')} className="text-blue-600 hover:underline">Copy</button></td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">
+                           <div className="flex items-center justify-between">
+                             <span>v=spf1 mx ~all</span>
+                             <button onClick={() => handleCopy('v=spf1 mx ~all')} className="text-blue-600 text-xs shrink-0">Copy</button>
+                           </div>
+                         </td>
+                         <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.spf} /></td>
                       </tr>
                       {/* 5. DMARC */}
                       <tr>
-                         <td className="px-3 py-2 font-mono">TXT</td>
+                         <td className="px-3 py-2 font-mono font-bold">TXT</td>
                          <td className="px-3 py-2 font-mono">_dmarc</td>
-                         <td className="px-3 py-2 font-mono break-all text-gray-600">v=DMARC1; p=none;</td>
-                         <td className="px-3 py-2"><button onClick={() => handleCopy('v=DMARC1; p=none;')} className="text-blue-600 hover:underline">Copy</button></td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">
+                           <div className="flex items-center justify-between">
+                             <span>v=DMARC1; p=none;</span>
+                             <button onClick={() => handleCopy('v=DMARC1; p=none;')} className="text-blue-600 text-xs shrink-0">Copy</button>
+                           </div>
+                         </td>
+                         <td className="px-3 py-2"><StatusIcon ok={dnsStatus?.dmarc} /></td>
                       </tr>
                     </tbody>
                   </table>

@@ -57,6 +57,20 @@ router.post('/:id/verify', authenticateClient, async (req, res) => {
   }
 });
 
+// Check DNS Status
+router.get('/:id/dns', authenticateClient, async (req, res) => {
+  try {
+    const domain = await Domain.findOne({ _id: req.params.id, client_id: req.user.client_id });
+    if (!domain) return res.status(404).json({ error: 'Domain not found' });
+
+    const status = await domainService.getDnsStatus(domain.name, domain.verification_token);
+    res.json(status);
+  } catch (err) {
+    logger.error('DNS Status Error:', err);
+    res.status(500).json({ error: 'Failed to check DNS status' });
+  }
+});
+
 // List Domains
 router.get('/', authenticateClient, async (req, res) => {
   try {

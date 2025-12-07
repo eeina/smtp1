@@ -66,9 +66,64 @@ const generateDkimKeys = () => {
   return { privateKey, publicKey };
 };
 
+/**
+ * Checks detailed status of all required DNS records
+ * @param {string} domainName
+ * @param {string} token
+ */
+const getDnsStatus = async (domainName, token) => {
+  const status = {
+    verification: false,
+    a_record: false,
+    mx: false,
+    spf: false,
+    dmarc: false
+  };
+
+  try {
+    // 1. Root TXT (Verification & SPF)
+    // We catch errors individually to allow partial success
+    let txtRecords = [];
+    try {
+      txtRecords = await dns.resolveTxt(domainName);
+    } catch (e) { /* ignore */ }
+    
+    const flatTxt = txtRecords.map(c => c.join(''));
+    status.verification = flatTxt.some(r => r.includes(token));
+    status.spf = flatTxt.some(r => r.toLowerCase().includes('v=spf1'));
+
+    // 2. A Record (mail.domain)
+    try {
+      const aRecords = await dns.resolve4(`mail.${domainName}`);
+      status.a_record = aRecords.length > 0;
+    } catch (e) { /* ignore */ }
+
+    // 3. MX Record
+    try {
+      const mxRecords = await dns.resolveMx(domainName);
+      // Valid if MX records exist. Ideally should point to mail.domainName
+      // We check if any exchange contains 'mail.' or matches the A-record host
+      status.mx = mxRecords.length > 0 && mxRecords.some(r => r.exchange && r.exchange.includes('mail.'));
+    } catch (e) { /* ignore */ }
+
+    // 4. DMARC (_dmarc.domain)
+    try {
+      const dmarcRecords = await dns.resolveTxt(`_dmarc.${domainName}`);
+      const flatDmarc = dmarcRecords.map(c => c.join(''));
+      status.dmarc = flatDmarc.some(r => r.toLowerCase().includes('v=dmarc1'));
+    } catch (e) { /* ignore */ }
+
+  } catch (err) {
+    // Global failure
+  }
+  
+  return status;
+};
+
 module.exports = {
   generateVerificationToken,
   verifyDomainDns,
   checkMxRecord,
-  generateDkimKeys
+  generateDkimKeys,
+  getDnsStatus
 };

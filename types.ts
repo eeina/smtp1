@@ -33,54 +33,9 @@ export interface EmailMessage {
   created_at: string;
 }
 
-// Workaround for missing JSX.IntrinsicElements definitions in some environments
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      div: any;
-      span: any;
-      p: any;
-      h1: any;
-      h2: any;
-      h3: any;
-      h4: any;
-      h5: any;
-      h6: any;
-      ul: any;
-      li: any;
-      a: any;
-      button: any;
-      input: any;
-      label: any;
-      form: any;
-      textarea: any;
-      img: any;
-      svg: any;
-      path: any;
-      circle: any;
-      nav: any;
-      main: any;
-      table: any;
-      thead: any;
-      tbody: any;
-      tr: any;
-      th: any;
-      td: any;
-      iframe: any;
-      code: any;
-      strong: any;
-      br: any;
-      hr: any;
-      small: any;
-      b: any;
-      i: any;
-      header: any;
-      footer: any;
-      section: any;
-      article: any;
-      aside: any;
-      select: any;
-      option: any;
       [elemName: string]: any;
     }
   }
