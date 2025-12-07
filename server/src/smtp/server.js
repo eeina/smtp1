@@ -76,21 +76,13 @@ const onData = (stream, session, callback) => {
     }
 
     try {
-      const { from, to, subject, text, html, attachments } = parsed;
+      const { from, to, subject, text, html } = parsed;
       const fromAddress = from ? from.text : 'Unknown'; 
       
       // Handle To addresses (can be array or object)
       const toAddressStr = Array.isArray(to) 
         ? to.map(t => t.text).join(', ') 
         : (to ? to.text : '');
-      
-      // Prepare attachments for storage
-      const processedAttachments = attachments ? attachments.map(att => ({
-        filename: att.filename || 'unnamed',
-        contentType: att.contentType,
-        content: att.content,
-        size: att.size
-      })) : [];
 
       if (session.user) {
         // --- OUTBOUND (Authenticated User) ---
@@ -105,8 +97,6 @@ const onData = (stream, session, callback) => {
               subject: subject || '',
               text_body: text || '',
               html_body: html || '',
-              has_attachments: processedAttachments.length > 0,
-              attachments: processedAttachments,
               folder: 'sent',
               is_read: true
             });
@@ -116,9 +106,7 @@ const onData = (stream, session, callback) => {
         // 2. DELIVER THE EMAIL (Relay)
         const recipients = session.envelope.rcptTo.map(r => r.address);
         for (const recipient of recipients) {
-             await emailService.sendEmail(fromAddress, recipient, subject, text, html, {
-                attachments: processedAttachments
-             });
+             await emailService.sendEmail(fromAddress, recipient, subject, text, html);
         }
 
       } else {
@@ -141,8 +129,6 @@ const onData = (stream, session, callback) => {
               subject: subject || '',
               text_body: text || '',
               html_body: html || '',
-              has_attachments: processedAttachments.length > 0,
-              attachments: processedAttachments,
               folder: 'inbox',
               is_read: false
             });

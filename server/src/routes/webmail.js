@@ -87,10 +87,8 @@ router.get('/messages', authenticateWebmail, async (req, res) => {
         folder: folder
     };
 
-    // Exclude 'attachments.content' to keep response size light
     const [messages, total] = await Promise.all([
         EmailMessage.find(query)
-          .select('-attachments.content') 
           .sort({ created_at: -1 })
           .skip(skip)
           .limit(limit),
@@ -110,28 +108,6 @@ router.get('/messages', authenticateWebmail, async (req, res) => {
   }
 });
 
-// Download Attachment
-router.get('/messages/:id/download/:filename', authenticateWebmail, async (req, res) => {
-  try {
-    const message = await EmailMessage.findOne({
-      _id: req.params.id,
-      mailbox_id: req.user.mailbox_id
-    });
-
-    if (!message) return res.status(404).json({ error: 'Message not found' });
-
-    const attachment = message.attachments.find(att => att.filename === req.params.filename);
-    if (!attachment) return res.status(404).json({ error: 'Attachment not found' });
-
-    res.setHeader('Content-Type', attachment.contentType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
-    res.send(attachment.content);
-  } catch (err) {
-    logger.error('Download Error:', err);
-    res.status(500).json({ error: 'Failed to download attachment' });
-  }
-});
-
 // Mark Message as Read
 router.patch('/messages/:id/read', authenticateWebmail, async (req, res) => {
     try {
@@ -139,7 +115,7 @@ router.patch('/messages/:id/read', authenticateWebmail, async (req, res) => {
             { _id: req.params.id, mailbox_id: req.user.mailbox_id },
             { is_read: true },
             { new: true }
-        ).select('-attachments.content');
+        );
         if (!msg) return res.status(404).json({ error: 'Message not found' });
         res.json(msg);
     } catch (err) {
@@ -207,16 +183,16 @@ router.post('/send', authenticateWebmail, async (req, res) => {
     // Create plain text fallback (simple strip tags)
     const plainText = htmlBody.replace(/<[^>]+>/g, ' ');
 
-    // 2. Prepare Attachments for Nodemailer and DB Storage
+    // 2. Prepare Attachments for Nodemailer
     // Frontend sends: { filename, content: "base64string...", contentType }
     const processedAttachments = attachments ? attachments.map(att => ({
         filename: att.filename,
         content: Buffer.from(att.content.split('base64,')[1], 'base64'),
-        contentType: att.contentType,
-        size: Buffer.from(att.content.split('base64,')[1], 'base64').length
+        contentType: att.contentType
     })) : [];
 
     // 3. Save to Sender's Sent Folder
+    // Note: We are NOT storing attachments in Mongo for now to save space, but we mark it.
     await EmailMessage.create({
       mailbox_id: senderMailboxId,
       direction: 'outbound',
@@ -228,7 +204,6 @@ router.post('/send', authenticateWebmail, async (req, res) => {
       text_body: plainText,
       html_body: safeHtml,
       has_attachments: processedAttachments.length > 0,
-      attachments: processedAttachments, // Store content in DB now
       folder: 'sent',
       is_read: true
     });
@@ -239,6 +214,7 @@ router.post('/send', authenticateWebmail, async (req, res) => {
     const bccRecipients = bcc ? bcc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : [];
     
     // Combine all unique recipients to iterate over for delivery
+    // Note: We iterate because our `sendEmail` service handles internal vs external routing *per recipient*.
     const allRecipients = new Set([...recipients, ...ccRecipients, ...bccRecipients]);
 
     for (const recipientEmail of allRecipients) {

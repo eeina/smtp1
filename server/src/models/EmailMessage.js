@@ -43,12 +43,6 @@ const emailMessageSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  attachments: [{
-    filename: String,
-    contentType: String,
-    content: Buffer,
-    size: Number
-  }],
   is_read: {
     type: Boolean,
     default: false
