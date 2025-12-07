@@ -12,6 +12,9 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
   const [selectedDomainId, setSelectedDomainId] = useState<string | null>(null);
   const [newMailboxEmail, setNewMailboxEmail] = useState('');
   const [newMailboxPassword, setNewMailboxPassword] = useState('');
+  
+  // DNS View State
+  const [viewDnsDomain, setViewDnsDomain] = useState<Domain | null>(null);
 
   const refreshData = async () => {
     try {
@@ -70,7 +73,6 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
-    // Simple feedback without adding a new UI library
     const btn = document.activeElement as HTMLButtonElement;
     if(btn) {
       const original = btn.innerText;
@@ -80,7 +82,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 relative">
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -105,7 +107,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <p className="text-slate-400 text-sm uppercase">SMTP Host</p>
-              <p className="font-mono text-lg">localhost / your-public-ip</p>
+              <p className="font-mono text-lg">localhost / {window.location.hostname}</p>
             </div>
             <div>
               <p className="text-slate-400 text-sm uppercase">Port 25 (Inbound)</p>
@@ -157,13 +159,19 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                             disabled={loading}
                             className="text-sm bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition"
                           >
-                            {loading ? 'Checking...' : 'Verify DNS'}
+                            {loading ? 'Checking...' : 'Check Verification'}
                           </button>
                         )}
+                        <button 
+                          onClick={() => setViewDnsDomain(domain)}
+                          className="text-sm border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-50"
+                        >
+                          DNS Setup
+                        </button>
                         {domain.is_verified && (
                           <button 
                             onClick={() => setSelectedDomainId(domain._id === selectedDomainId ? null : domain._id)}
-                            className="text-sm border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-50"
+                            className="text-sm border border-blue-300 text-blue-700 px-3 py-1 rounded hover:bg-blue-50"
                           >
                             Manage Users
                           </button>
@@ -173,50 +181,12 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                     
                     {!domain.is_verified && (
                       <div className="mt-4 bg-orange-50 border border-orange-100 p-4 rounded-md">
-                        <div className="flex items-start gap-3">
-                          <div className="text-orange-400 mt-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-bold text-orange-900 mb-2">Domain Verification Required</h4>
-                            <p className="text-sm text-orange-800 mb-3">
-                              Go to your domain provider (GoDaddy, Namecheap, Cloudflare, etc.) and add the following <strong>TXT Record</strong> to verify ownership.
-                            </p>
-                            
-                            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                  <tr>
-                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider text-xs">Type</th>
-                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider text-xs">Host / Name</th>
-                                    <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider text-xs">Value / Content</th>
-                                    <th className="px-3 py-2"></th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                  <tr>
-                                    <td className="px-3 py-2 whitespace-nowrap font-mono text-gray-700">TXT</td>
-                                    <td className="px-3 py-2 whitespace-nowrap font-mono text-gray-700">@</td>
-                                    <td className="px-3 py-2 font-mono text-gray-500 break-all">{domain.verification_token}</td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-right">
-                                      <button 
-                                        onClick={() => handleCopy(domain.verification_token)}
-                                        className="text-blue-600 hover:text-blue-900 font-medium text-xs border border-blue-200 px-2 py-1 rounded hover:bg-blue-50"
-                                      >
-                                        Copy
-                                      </button>
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                            <p className="text-xs text-orange-600 mt-2">
-                              Note: DNS propagation can take anywhere from a few minutes to 24 hours.
-                            </p>
-                          </div>
-                        </div>
+                         <p className="text-sm text-orange-800 mb-2 font-bold">Verification Token:</p>
+                         <div className="flex items-center gap-2">
+                            <code className="bg-orange-100 px-2 py-1 rounded text-sm flex-1 truncate">{domain.verification_token}</code>
+                            <button onClick={() => handleCopy(domain.verification_token)} className="text-xs text-orange-600 underline">Copy</button>
+                         </div>
+                         <p className="text-xs text-orange-600 mt-2">Add as a TXT record for @</p>
                       </div>
                     )}
 
@@ -268,6 +238,81 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
           </div>
         </div>
       </main>
+
+      {/* DNS Configuration Modal */}
+      {viewDnsDomain && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-600 opacity-75" onClick={() => setViewDnsDomain(null)}></div>
+            </div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <h3 className="text-xl leading-6 font-bold text-gray-900 mb-4">DNS Configuration: {viewDnsDomain.name}</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                   Add these records to your domain's DNS settings (e.g., Namecheap, GoDaddy, Cloudflare) to verify ownership and enable sending/receiving.
+                </p>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 border">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Host/Name</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                        <th className="px-3 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200 text-sm">
+                      {/* 1. VERIFICATION TXT */}
+                      <tr>
+                        <td className="px-3 py-2 font-mono">TXT</td>
+                        <td className="px-3 py-2 font-mono">@</td>
+                        <td className="px-3 py-2 font-mono break-all text-gray-600">{viewDnsDomain.verification_token}</td>
+                        <td className="px-3 py-2"><button onClick={() => handleCopy(viewDnsDomain.verification_token)} className="text-blue-600 hover:underline">Copy</button></td>
+                      </tr>
+                      {/* 2. A RECORD (Mail Server IP) */}
+                      <tr>
+                         <td className="px-3 py-2 font-mono">A</td>
+                         <td className="px-3 py-2 font-mono">mail</td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">Your Server IP</td>
+                         <td className="px-3 py-2"><span className="text-xs text-gray-400">Manual</span></td>
+                      </tr>
+                      {/* 3. MX RECORD */}
+                      <tr>
+                         <td className="px-3 py-2 font-mono">MX</td>
+                         <td className="px-3 py-2 font-mono">@</td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">mail.{viewDnsDomain.name} (Priority 10)</td>
+                         <td className="px-3 py-2"><button onClick={() => handleCopy(`mail.${viewDnsDomain.name}`)} className="text-blue-600 hover:underline">Copy</button></td>
+                      </tr>
+                       {/* 4. SPF */}
+                       <tr>
+                         <td className="px-3 py-2 font-mono">TXT</td>
+                         <td className="px-3 py-2 font-mono">@</td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">v=spf1 mx ~all</td>
+                         <td className="px-3 py-2"><button onClick={() => handleCopy('v=spf1 mx ~all')} className="text-blue-600 hover:underline">Copy</button></td>
+                      </tr>
+                      {/* 5. DMARC */}
+                      <tr>
+                         <td className="px-3 py-2 font-mono">TXT</td>
+                         <td className="px-3 py-2 font-mono">_dmarc</td>
+                         <td className="px-3 py-2 font-mono break-all text-gray-600">v=DMARC1; p=none;</td>
+                         <td className="px-3 py-2"><button onClick={() => handleCopy('v=DMARC1; p=none;')} className="text-blue-600 hover:underline">Copy</button></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onClick={() => setViewDnsDomain(null)} className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
