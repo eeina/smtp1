@@ -18,6 +18,12 @@ interface SystemLog {
   meta?: any;
 }
 
+interface DiagnosticResult {
+  dns: { status: 'ok' | 'error'; message: string };
+  port25: { status: 'ok' | 'error'; message: string };
+  timestamp: string;
+}
+
 const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
@@ -37,6 +43,11 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
   // Logs View State
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState<SystemLog[]>([]);
+
+  // Diagnostics View State
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
+  const [runningDiagnostics, setRunningDiagnostics] = useState(false);
 
   const refreshData = async () => {
     try {
@@ -66,6 +77,20 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
       setLogs(res.data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const runDiagnostics = async () => {
+    setShowDiagnostics(true);
+    setRunningDiagnostics(true);
+    setDiagnosticResult(null);
+    try {
+      const res = await api.get('/api/system/diagnostics');
+      setDiagnosticResult(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRunningDiagnostics(false);
     }
   };
 
@@ -175,8 +200,16 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
 
       <main className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         {/* Connection Info */}
-        <div className="bg-slate-800 rounded-lg shadow-lg p-6 mb-8 text-white">
-          <h3 className="text-lg font-medium mb-4 border-b border-slate-600 pb-2">SMTP Connection Details</h3>
+        <div className="bg-slate-800 rounded-lg shadow-lg p-6 mb-8 text-white relative">
+          <div className="flex justify-between items-start border-b border-slate-600 pb-2 mb-4">
+            <h3 className="text-lg font-medium">SMTP Connection Details</h3>
+            <button 
+              onClick={runDiagnostics} 
+              className="text-xs bg-slate-700 hover:bg-slate-600 text-blue-300 px-3 py-1 rounded border border-slate-600 transition"
+            >
+              Check Server Health
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <p className="text-slate-400 text-sm uppercase">SMTP Host</p>
@@ -465,7 +498,6 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                                     </td>
                                     <td className="px-4 py-2 text-gray-300 break-all">
                                         {log.message}
-                                        {/* Render meta if it exists and has meaningful content */}
                                         {log.meta && Object.keys(log.meta).length > 0 && JSON.stringify(log.meta) !== '{}' && (
                                            <div className="mt-1 text-gray-600 pl-2 border-l-2 border-gray-700 overflow-hidden text-[10px]">
                                              {JSON.stringify(log.meta)}
@@ -481,6 +513,93 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
 
               <div className="bg-gray-800 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" onClick={() => setShowLogs(false)} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Diagnostics Modal */}
+      {showDiagnostics && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-600 opacity-75" onClick={() => !runningDiagnostics && setShowDiagnostics(false)}></div>
+            </div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg leading-6 font-bold text-gray-900">Server Diagnostics</h3>
+                </div>
+                
+                <div className="space-y-4">
+                    {runningDiagnostics ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                             <svg className="animate-spin h-8 w-8 text-blue-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                             </svg>
+                             <p>Running network checks...</p>
+                        </div>
+                    ) : diagnosticResult ? (
+                        <div className="space-y-4">
+                             {/* DNS Check */}
+                             <div className={`p-4 rounded-md border ${diagnosticResult.dns.status === 'ok' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                <div className="flex items-start">
+                                    <div className="flex-shrink-0">
+                                        {diagnosticResult.dns.status === 'ok' ? (
+                                            <svg className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        ) : (
+                                            <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        )}
+                                    </div>
+                                    <div className="ml-3">
+                                        <h3 className={`text-sm font-medium ${diagnosticResult.dns.status === 'ok' ? 'text-green-800' : 'text-red-800'}`}>
+                                            Internet & DNS
+                                        </h3>
+                                        <div className={`mt-2 text-sm ${diagnosticResult.dns.status === 'ok' ? 'text-green-700' : 'text-red-700'}`}>
+                                            {diagnosticResult.dns.message}
+                                        </div>
+                                    </div>
+                                </div>
+                             </div>
+
+                             {/* Port Check */}
+                             <div className={`p-4 rounded-md border ${diagnosticResult.port25.status === 'ok' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                <div className="flex items-start">
+                                    <div className="flex-shrink-0">
+                                        {diagnosticResult.port25.status === 'ok' ? (
+                                            <svg className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        ) : (
+                                            <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        )}
+                                    </div>
+                                    <div className="ml-3">
+                                        <h3 className={`text-sm font-medium ${diagnosticResult.port25.status === 'ok' ? 'text-green-800' : 'text-red-800'}`}>
+                                            Outbound Mail (Port 25)
+                                        </h3>
+                                        <div className={`mt-2 text-sm ${diagnosticResult.port25.status === 'ok' ? 'text-green-700' : 'text-red-700'}`}>
+                                            {diagnosticResult.port25.message}
+                                        </div>
+                                    </div>
+                                </div>
+                             </div>
+
+                             {diagnosticResult.port25.status === 'error' && (
+                                 <div className="text-xs text-gray-500 italic mt-2">
+                                     If Port 25 is blocked, you cannot send email directly to external providers like Gmail. 
+                                     You must use a Smart Host or ask your hosting provider to unblock it.
+                                 </div>
+                             )}
+                        </div>
+                    ) : null}
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onClick={() => setShowDiagnostics(false)} className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
                   Close
                 </button>
               </div>

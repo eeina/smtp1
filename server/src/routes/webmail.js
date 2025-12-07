@@ -77,7 +77,8 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
     logger.info(`External Delivery Success: ${recipientEmail}`);
     return true;
   } catch (error) {
-    logger.error(`External Delivery Failed to ${recipientEmail}:`, error.message);
+    // Fixed logging to include error message in the main log string
+    logger.error(`External Delivery Failed to ${recipientEmail}: ${error.message}`);
     return false;
   }
 };
