@@ -12,7 +12,6 @@ interface Props {
 const EditMailboxModal = ({ mailbox, onClose, onSuccess }: Props) => {
   const [password, setPassword] = useState('');
   const [quota, setQuota] = useState((mailbox as any).quota_bytes ? Math.round((mailbox as any).quota_bytes / 1024 / 1024 / 1024) : 1);
-  const [recoveryEmail, setRecoveryEmail] = useState(mailbox.recovery_email || '');
   const [firstName, setFirstName] = useState(mailbox.first_name || '');
   const [lastName, setLastName] = useState(mailbox.last_name || '');
   
@@ -27,7 +26,6 @@ const EditMailboxModal = ({ mailbox, onClose, onSuccess }: Props) => {
     try {
         const payload: any = {
             quota_bytes: quota * 1024 * 1024 * 1024,
-            recovery_email: recoveryEmail,
             first_name: firstName,
             last_name: lastName
         };
@@ -97,18 +95,6 @@ const EditMailboxModal = ({ mailbox, onClose, onSuccess }: Props) => {
                             minLength={6}
                         />
                         <p className="text-xs text-gray-400 mt-1">Only enter if you want to change it.</p>
-                    </div>
-                    
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Recovery Email</label>
-                        <input 
-                            type="email" 
-                            className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                            placeholder="external@gmail.com"
-                            value={recoveryEmail}
-                            onChange={e => setRecoveryEmail(e.target.value)}
-                        />
-                        <p className="text-xs text-gray-400 mt-1">Used to reset password via OTP.</p>
                     </div>
 
                     <div>

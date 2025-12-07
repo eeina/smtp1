@@ -182,13 +182,7 @@ const DomainManager = (props: Props) => {
                           className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         />
                     </div>
-                    <div className="sm:col-span-2 lg:col-span-4 flex items-center gap-3">
-                         <input 
-                          type="email" 
-                          placeholder="Recovery Email (Optional)"
-                          name="recoveryEmail"
-                          className="flex-1 border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                        />
+                    <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
                         <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm">
                            Create Mailbox
                         </button>

@@ -17,7 +17,6 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
   const [firstName, setFirstName] = useState(user.first_name || '');
   const [lastName, setLastName] = useState(user.last_name || '');
   const [companyName, setCompanyName] = useState(user.company_name || '');
-  const [recoveryEmail, setRecoveryEmail] = useState(user.recovery_email || '');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileMsg, setProfileMsg] = useState({ type: '', text: '' });
 
@@ -80,7 +79,6 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
         const res = await api.put('/api/account/profile', { 
             email, 
             company_name: companyName, 
-            recovery_email: recoveryEmail,
             first_name: firstName,
             last_name: lastName
         });
@@ -192,16 +190,6 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
                             className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Recovery Email</label>
-                        <input 
-                            type="email" 
-                            className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                            value={recoveryEmail}
-                            onChange={e => setRecoveryEmail(e.target.value)}
-                            placeholder="To reset your password"
                         />
                     </div>
                     <div>
