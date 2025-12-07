@@ -13,6 +13,7 @@ const clientAuthRoutes = require('./src/routes/clientAuth');
 const domainRoutes = require('./src/routes/domains');
 const mailboxRoutes = require('./src/routes/mailboxes');
 const webmailRoutes = require('./src/routes/webmail');
+const systemRoutes = require('./src/routes/system');
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/api/auth', clientAuthRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/mailboxes', mailboxRoutes);
 app.use('/api/webmail', webmailRoutes);
+app.use('/api/system', systemRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

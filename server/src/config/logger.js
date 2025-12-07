@@ -1,4 +1,40 @@
 const winston = require('winston');
+const Transport = require('winston-transport');
+
+// Custom Transport to save logs to MongoDB
+class MongoTransport extends Transport {
+  constructor(opts) {
+    super(opts);
+  }
+ 
+  log(info, callback) {
+    setImmediate(() => {
+      this.emit('logged', info);
+    });
+
+    try {
+      // Lazy load model to ensure mongoose connection exists
+      const SystemLog = require('../models/SystemLog');
+      
+      // Clean up meta to ensure circular structures don't break insert
+      const { level, message, ...meta } = info;
+      
+      SystemLog.create({
+        level,
+        message,
+        meta
+      }).catch(err => {
+        // Fallback to console if DB fails, to avoid infinite loop
+        console.error('Failed to write log to DB:', err.message);
+      });
+
+    } catch(e) {
+      console.error("MongoTransport error", e);
+    }
+    
+    callback();
+  }
+}
 
 const logger = winston.createLogger({
   level: 'info',
@@ -8,19 +44,12 @@ const logger = winston.createLogger({
   ),
   defaultMeta: { service: 'smtp-service' },
   transports: [
-    //
-    // - Write all logs with importance level of `error` or less to `error.log`
-    // - Write all logs with importance level of `info` or less to `combined.log`
-    //
     new winston.transports.File({ filename: 'error.log', level: 'error' }),
     new winston.transports.File({ filename: 'combined.log' }),
+    new MongoTransport() // Add our custom transport
   ],
 });
 
-//
-// If we're not in production then log to the `console` with the format:
-// `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
-//
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(
@@ -29,7 +58,6 @@ if (process.env.NODE_ENV !== 'production') {
     ),
   }));
 } else {
-  // In production, we still often want console logs for container orchestration (docker/k8s)
   logger.add(new winston.transports.Console({
     format: winston.format.simple(),
   }));

@@ -10,6 +10,14 @@ interface DnsStatus {
   dmarc: boolean;
 }
 
+interface SystemLog {
+  _id: string;
+  level: string;
+  message: string;
+  timestamp: string;
+  meta?: any;
+}
+
 const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
@@ -26,6 +34,10 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
   const [dnsStatus, setDnsStatus] = useState<DnsStatus | null>(null);
   const [checkingDns, setCheckingDns] = useState(false);
 
+  // Logs View State
+  const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState<SystemLog[]>([]);
+
   const refreshData = async () => {
     try {
       const dRes = await api.get('/api/domains');
@@ -38,6 +50,24 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
   };
 
   useEffect(() => { refreshData(); }, []);
+
+  useEffect(() => {
+    let interval: any;
+    if (showLogs) {
+      fetchLogs();
+      interval = setInterval(fetchLogs, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [showLogs]);
+
+  const fetchLogs = async () => {
+    try {
+      const res = await api.get('/api/system/logs');
+      setLogs(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,9 +156,18 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
                 {user.company_name}
               </span>
             </div>
-            <div className="flex items-center">
-              <span className="text-gray-500 mr-4">{user.email}</span>
-              <button onClick={onLogout} className="text-red-600 hover:text-red-800 font-medium text-sm">Logout</button>
+            <div className="flex items-center space-x-4">
+              <button 
+                onClick={() => setShowLogs(true)}
+                className="text-gray-600 hover:text-gray-900 font-medium text-sm flex items-center"
+              >
+                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                System Logs
+              </button>
+              <div className="flex items-center">
+                <span className="text-gray-500 mr-4">{user.email}</span>
+                <button onClick={onLogout} className="text-red-600 hover:text-red-800 font-medium text-sm">Logout</button>
+              </div>
             </div>
           </div>
         </div>
@@ -375,6 +414,73 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
               </div>
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button type="button" onClick={() => setViewDnsDomain(null)} className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* System Logs Modal */}
+      {showLogs && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-600 opacity-75" onClick={() => setShowLogs(false)}></div>
+            </div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-gray-900 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl w-full">
+              <div className="bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 className="text-lg leading-6 font-bold text-white">System Logs</h3>
+                <button onClick={() => fetchLogs()} className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded hover:bg-gray-600">Refresh</button>
+              </div>
+              
+              <div className="p-0 bg-gray-900 h-96 overflow-y-auto font-mono text-xs">
+                {logs.length === 0 ? (
+                    <div className="p-4 text-gray-500 italic">No logs found.</div>
+                ) : (
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-800 text-gray-400 sticky top-0">
+                            <tr>
+                                <th className="px-4 py-2 w-32">Time</th>
+                                <th className="px-4 py-2 w-20">Level</th>
+                                <th className="px-4 py-2">Message</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-800">
+                            {logs.map((log) => (
+                                <tr key={log._id} className="hover:bg-gray-800 transition-colors">
+                                    <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
+                                        {new Date(log.timestamp).toLocaleTimeString()}
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                            log.level === 'error' ? 'bg-red-900 text-red-200' :
+                                            log.level === 'warn' ? 'bg-yellow-900 text-yellow-200' :
+                                            'bg-blue-900 text-blue-200'
+                                        }`}>
+                                            {log.level}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-2 text-gray-300 break-all">
+                                        {log.message}
+                                        {/* Render meta if it exists and has meaningful content */}
+                                        {log.meta && Object.keys(log.meta).length > 0 && JSON.stringify(log.meta) !== '{}' && (
+                                           <div className="mt-1 text-gray-600 pl-2 border-l-2 border-gray-700 overflow-hidden text-[10px]">
+                                             {JSON.stringify(log.meta)}
+                                           </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+              </div>
+
+              <div className="bg-gray-800 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onClick={() => setShowLogs(false)} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
                   Close
                 </button>
               </div>
