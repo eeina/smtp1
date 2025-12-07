@@ -176,6 +176,19 @@ const DiagnosticsModal = ({ result, running, onClose }: Props) => {
                                 )}
                             </div>
 
+                            {/* IP WARMUP NOTICE */}
+                            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
+                                <h4 className="text-xs font-bold text-yellow-800 uppercase tracking-wide mb-1 flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    New IP Warm-up Required
+                                </h4>
+                                <p className="text-sm text-yellow-800 leading-relaxed">
+                                    If this server IP is new, <strong>all emails will go to spam for the first 2-4 weeks</strong>. This is normal behavior for Gmail/Outlook to prevent abuse.
+                                    <br/><br/>
+                                    <strong>Solution:</strong> Send small volumes of high-quality email (10-20/day) to people who will open and reply to them. Gradually increase volume over 30 days. There is no code fix for a cold IP.
+                                </p>
+                            </div>
+
                             {/* External Tools */}
                             <div className="grid grid-cols-2 gap-3">
                                 <a 
@@ -196,17 +209,6 @@ const DiagnosticsModal = ({ result, running, onClose }: Props) => {
                                     <span className="text-gray-900 font-bold text-sm group-hover:text-blue-600">Test Email Score</span>
                                     <span className="text-xs text-gray-500 mt-1">Mail-Tester.com</span>
                                 </a>
-                            </div>
-
-                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                                <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">Checklist for 10/10 Score:</h4>
-                                <ul className="text-sm text-blue-900 space-y-1 list-disc pl-4">
-                                    <li>DNS: <strong>SPF</strong> record is valid.</li>
-                                    <li>DNS: <strong>DKIM</strong> signature is valid.</li>
-                                    <li>DNS: <strong>DMARC</strong> policy exists.</li>
-                                    <li>Server: <strong>PTR Record</strong> matches hostname.</li>
-                                    <li>Reputation: IP is not blacklisted.</li>
-                                </ul>
                             </div>
                          </div>
                     )}

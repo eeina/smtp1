@@ -44,6 +44,7 @@ export interface DnsStatus {
   found_mx?: string[];
   found_a?: string[];
   found_txt?: string[];
+  server_ip?: string;
 }
 
 declare global {

@@ -25,6 +25,13 @@ const DnsConfigModal = ({ domain, status, checking, onClose, onRefresh }: Props)
     return `v=DKIM1; k=rsa; p=${raw}`;
   };
 
+  const getSpfValue = () => {
+    if (status?.server_ip) {
+        return `v=spf1 ip4:${status.server_ip} ~all`;
+    }
+    return `v=spf1 mx ~all`;
+  };
+
   const StatusIcon = ({ ok }: { ok?: boolean }) => {
     if (checking && ok === undefined) return <span className="animate-pulse text-gray-400 font-medium text-xs">Checking...</span>;
     if (ok) return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">OK</span>;
@@ -37,7 +44,7 @@ const DnsConfigModal = ({ domain, status, checking, onClose, onRefresh }: Props)
       <td className="px-4 py-3 font-mono font-bold text-gray-700 align-top">{type}</td>
       <td className="px-4 py-3 font-mono text-gray-600 align-top">{host}</td>
       <td className="px-4 py-3 align-top">
-        <div className="font-mono text-xs text-gray-600 break-all bg-gray-50 p-2 rounded border border-gray-100 mb-1">
+        <div className="font-mono text-xs text-gray-600 break-all bg-gray-50 p-2 rounded border border-gray-100 mb-1 select-all">
           {value}
         </div>
         <button 
@@ -66,7 +73,7 @@ const DnsConfigModal = ({ domain, status, checking, onClose, onRefresh }: Props)
               <div>
                 <h3 className="text-xl leading-6 font-bold text-gray-900" id="modal-title">DNS Configuration</h3>
                 <p className="text-sm text-gray-500 mt-1">
-                  Setup for <span className="font-semibold text-gray-700">{domain.name}</span>
+                  Add these records to your <strong>Domain Registrar</strong> (GoDaddy, Namecheap, etc) to prevent spam.
                 </p>
               </div>
               <button 
@@ -102,7 +109,7 @@ const DnsConfigModal = ({ domain, status, checking, onClose, onRefresh }: Props)
                     <DnsRow 
                         type="A" 
                         host="mail" 
-                        value="[Your Server IP]" 
+                        value={status?.server_ip || "[Your Server IP]"} 
                         statusOk={status?.a_record} 
                     />
 
@@ -115,15 +122,10 @@ const DnsConfigModal = ({ domain, status, checking, onClose, onRefresh }: Props)
                         warnings={
                              status?.found_mx && status.found_mx.length > 0 ? (
                                 <div className="mt-2 pt-2 border-t border-gray-100">
-                                   <div className="text-[10px] uppercase font-bold text-gray-400 mb-1">Detected (Delete Red):</div>
+                                   <div className="text-[10px] uppercase font-bold text-gray-400 mb-1">Detected (Must point to mail.{domain.name}):</div>
                                    <ul className="text-xs space-y-1">
                                       {status.found_mx.map((mx, i) => (
-                                          <li key={i} className={`flex items-center ${mx.includes('mail.' + domain.name) ? 'text-green-600 font-bold' : 'text-red-600'}`}>
-                                             {mx.includes('mail.' + domain.name) ? 
-                                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg> 
-                                                : 
-                                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                                             }
+                                          <li key={i} className={`flex items-center ${mx.includes('mail.') || (status.server_ip && mx.includes(status.server_ip)) ? 'text-green-600' : 'text-red-600'}`}>
                                              {mx}
                                           </li>
                                       ))}
@@ -137,22 +139,23 @@ const DnsConfigModal = ({ domain, status, checking, onClose, onRefresh }: Props)
                     <DnsRow 
                         type="TXT" 
                         host="@" 
-                        value="v=spf1 mx ~all" 
+                        value={getSpfValue()} 
                         statusOk={status?.spf}
                         warnings={
-                           (() => {
-                               const spfs = status?.found_txt?.filter(t => t.toLowerCase().includes('v=spf1')) || [];
-                               if (spfs.length > 1) return (
-                                 <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs border border-red-100 rounded">
-                                   <strong>Critical: Multiple SPF records found!</strong>
-                                   <p className="mt-1">Keep only one. Delete others:</p>
-                                   <ul className="list-disc pl-4 mt-1 font-mono">
-                                      {spfs.map((s,i) => <li key={i}>{s}</li>)}
-                                   </ul>
-                                 </div>
-                               );
-                               return null;
-                           })()
+                           <div>
+                               {(() => {
+                                   const spfs = status?.found_txt?.filter(t => t.toLowerCase().includes('v=spf1')) || [];
+                                   if (spfs.length > 1) return (
+                                     <div className="mt-2 p-2 bg-red-50 text-red-600 text-xs border border-red-100 rounded">
+                                       <strong>Critical: Multiple SPF records found!</strong> Delete others.
+                                     </div>
+                                   );
+                                   return null;
+                               })()}
+                               <div className="mt-1 text-[10px] text-gray-400">
+                                   Explicitly authorizes IP {status?.server_ip || '...'}
+                               </div>
+                           </div>
                         } 
                     />
 

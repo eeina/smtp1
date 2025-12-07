@@ -10,6 +10,19 @@ const generateVerificationToken = () => {
 };
 
 /**
+ * Helper to get public IP
+ */
+const getPublicIp = async () => {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const data = await response.json();
+    return data.ip;
+  } catch(e) {
+    return null;
+  }
+};
+
+/**
  * Fetches TXT records for the domain and checks if the token exists.
  * @param {string} domainName 
  * @param {string} token 
@@ -72,6 +85,8 @@ const generateDkimKeys = () => {
  * @param {string} token
  */
 const getDnsStatus = async (domainName, token) => {
+  const serverIp = await getPublicIp();
+
   const status = {
     verification: false,
     a_record: false,
@@ -81,7 +96,8 @@ const getDnsStatus = async (domainName, token) => {
     dkim: false,
     found_mx: [],
     found_a: [],
-    found_txt: []
+    found_txt: [],
+    server_ip: serverIp
   };
 
   try {
@@ -94,7 +110,17 @@ const getDnsStatus = async (domainName, token) => {
     } catch (e) { /* ignore */ }
     
     status.verification = status.found_txt.some(r => r.includes(token));
-    status.spf = status.found_txt.some(r => r.toLowerCase().includes('v=spf1'));
+    
+    // Improved SPF Check: Look for IP or MX
+    status.spf = status.found_txt.some(r => {
+        const lower = r.toLowerCase();
+        if (!lower.includes('v=spf1')) return false;
+        // If we know the server IP, check if it's in the record
+        if (serverIp && lower.includes(serverIp)) return true;
+        // Fallback: check for 'mx' or 'a' if explicit IP missing (less secure but valid)
+        if (lower.includes('mx') || lower.includes('a')) return true;
+        return false;
+    });
 
     // 2. A Record (mail.domain)
     try {
@@ -107,8 +133,7 @@ const getDnsStatus = async (domainName, token) => {
     try {
       const mxRecords = await dns.resolveMx(domainName);
       status.found_mx = mxRecords.map(r => `${r.priority} ${r.exchange}`);
-      // Valid if MX records exist and at least one points to mail.domainName
-      // We check if any exchange contains 'mail.' or matches the A-record host
+      // Valid if MX records exist and at least one points to mail.domainName or contains 'mail.'
       status.mx = mxRecords.length > 0 && mxRecords.some(r => r.exchange && r.exchange.includes('mail.'));
     } catch (e) { /* ignore */ }
 
