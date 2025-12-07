@@ -6,6 +6,7 @@ const dns = require('dns').promises;
 const nodemailer = require('nodemailer');
 const Mailbox = require('../models/Mailbox');
 const EmailMessage = require('../models/EmailMessage');
+const SystemConfig = require('../models/SystemConfig');
 const { authenticateWebmail } = require('../middleware/auth');
 const logger = require('../config/logger');
 
@@ -87,7 +88,18 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
       logger.warn(`No DKIM key found for ${senderEmail}. Email will be unsigned.`);
     }
 
-    // 3. Create Transporter
+    // 3. Get System Config for HELO
+    let heloName = process.env.MY_HOSTNAME || 'smtp-server.local';
+    try {
+        const config = await SystemConfig.findOne({ singleton: true });
+        if (config && config.smtp_hostname) {
+            heloName = config.smtp_hostname;
+        }
+    } catch(e) {
+        // Fallback to env
+    }
+
+    // 4. Create Transporter
     const transporter = nodemailer.createTransport({
       host: bestMx,
       port: 25, // Standard MTA-to-MTA port
@@ -95,11 +107,11 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
       tls: {
         rejectUnauthorized: false // Often necessary for opportunistic TLS
       },
-      name: process.env.MY_HOSTNAME || 'smtp-server.local', // HELO hostname
+      name: heloName, // Dynamic HELO hostname
       dkim: dkimOptions
     });
 
-    // 4. Send
+    // 5. Send
     await transporter.sendMail({
       from: senderEmail,
       to: recipientEmail,
@@ -108,7 +120,7 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html)
       html: html
     });
     
-    logger.info(`External Delivery Success: ${recipientEmail}`);
+    logger.info(`External Delivery Success: ${recipientEmail} (HELO: ${heloName})`);
     return true;
   } catch (error) {
     logger.error(`External Delivery Failed to ${recipientEmail}: ${error.message}`);

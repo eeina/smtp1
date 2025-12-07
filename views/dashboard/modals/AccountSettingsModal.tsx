@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../../../types';
 import api from '../../../api';
 import Spinner from '../../../components/Spinner';
@@ -10,7 +10,7 @@ interface Props {
 }
 
 const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'server'>('profile');
   
   // Profile State
   const [email, setEmail] = useState(user.email);
@@ -23,6 +23,30 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
   const [newPassword, setNewPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
+
+  // Server Config State
+  const [smtpHostname, setSmtpHostname] = useState('');
+  const [serverLoading, setServerLoading] = useState(false);
+  const [serverMsg, setServerMsg] = useState({ type: '', text: '' });
+
+  // Load Server Config when tab is clicked
+  useEffect(() => {
+    if (activeTab === 'server') {
+        fetchServerConfig();
+    }
+  }, [activeTab]);
+
+  const fetchServerConfig = async () => {
+    setServerLoading(true);
+    try {
+        const res = await api.get('/api/system/config');
+        setSmtpHostname(res.data.smtp_hostname || '');
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setServerLoading(false);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +81,30 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
     }
   };
 
+  const handleUpdateServer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerLoading(true);
+    setServerMsg({ type: '', text: '' });
+
+    try {
+        await api.put('/api/system/config', { smtp_hostname: smtpHostname });
+        setServerMsg({ type: 'success', text: 'Server configuration saved' });
+    } catch (err: any) {
+        setServerMsg({ type: 'error', text: err.response?.data?.error || 'Failed to save config' });
+    } finally {
+        setServerLoading(false);
+    }
+  };
+
+  const TabButton = ({ id, label }: { id: typeof activeTab, label: string }) => (
+    <button 
+        className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === id ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:text-gray-700'}`}
+        onClick={() => setActiveTab(id)}
+    >
+        {label}
+    </button>
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -66,25 +114,16 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
         <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full">
           
           <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-gray-900">Account Settings</h3>
+            <h3 className="text-lg font-bold text-gray-900">Settings</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
 
           <div className="flex border-b border-gray-100">
-            <button 
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'profile' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => setActiveTab('profile')}
-            >
-                Profile Info
-            </button>
-            <button 
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'security' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => setActiveTab('security')}
-            >
-                Security
-            </button>
+            <TabButton id="profile" label="Profile" />
+            <TabButton id="security" label="Security" />
+            <TabButton id="server" label="Server Config" />
           </div>
 
           <div className="p-6">
@@ -164,6 +203,47 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
                             className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex justify-center items-center"
                         >
                             {passwordLoading ? <Spinner /> : 'Update Password'}
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {/* SERVER TAB */}
+            {activeTab === 'server' && (
+                <form onSubmit={handleUpdateServer} className="space-y-4">
+                    {serverMsg.text && (
+                        <div className={`text-sm p-3 rounded-lg ${serverMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                            {serverMsg.text}
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Server Hostname (HELO/EHLO)</label>
+                        <input 
+                            type="text" 
+                            className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-mono"
+                            placeholder="e.g. mail.your-domain.com"
+                            value={smtpHostname}
+                            onChange={e => setSmtpHostname(e.target.value)}
+                        />
+                        <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                            This hostname is announced to other mail servers. For best deliverability, this <strong>must match</strong> your Reverse DNS (PTR) record.
+                        </p>
+                    </div>
+
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                         <h4 className="text-xs font-bold text-blue-800 uppercase mb-1">Recommendation</h4>
+                         <p className="text-xs text-blue-700">
+                             If your PTR is <code>srv123.host.com</code>, set this to <code>srv123.host.com</code>.
+                         </p>
+                    </div>
+
+                    <div className="pt-2">
+                        <button 
+                            type="submit" 
+                            disabled={serverLoading}
+                            className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition flex justify-center items-center"
+                        >
+                            {serverLoading ? <Spinner /> : 'Save Configuration'}
                         </button>
                     </div>
                 </form>

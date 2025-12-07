@@ -4,6 +4,7 @@ interface DiagnosticResult {
   dns: { status: 'ok' | 'error' | 'warning'; message: string };
   port25: { status: 'ok' | 'error'; message: string };
   rdns?: { status: 'ok' | 'error' | 'warning'; message: string; ip: string; ptrs: string[]; help?: string };
+  config?: { smtp_hostname: string };
   timestamp: string;
 }
 
@@ -15,6 +16,16 @@ interface Props {
 
 const DiagnosticsModal = ({ result, running, onClose }: Props) => {
   const [activeTab, setActiveTab] = useState<'network' | 'spam'>('network');
+
+  const getHostnameStatus = () => {
+    if (!result?.rdns || !result.config?.smtp_hostname) return null;
+    if (result.rdns.ptrs.includes(result.config.smtp_hostname)) {
+        return { status: 'ok', msg: 'Matches PTR Record' };
+    }
+    return { status: 'error', msg: 'Mismatch with PTR Record' };
+  };
+
+  const hostnameStatus = getHostnameStatus();
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
@@ -139,6 +150,28 @@ const DiagnosticsModal = ({ result, running, onClose }: Props) => {
                                 {result.rdns?.status !== 'ok' && (
                                     <div className="mt-3 text-xs bg-white p-2 rounded border border-red-100 text-red-600">
                                         {result.rdns?.help || "Missing PTR records are the #1 cause of spam rejection."}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* HOSTNAME CONFIG CHECK */}
+                            <div className={`p-4 rounded-xl border ${!result.config?.smtp_hostname ? 'bg-yellow-50 border-yellow-200' : hostnameStatus?.status === 'ok' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                        <h4 className="text-sm font-bold text-gray-800">Server Hostname (HELO)</h4>
+                                        <div className="text-xs text-gray-600 mt-1">
+                                            Configured: <code className="font-mono bg-white px-1 rounded">{result.config?.smtp_hostname || 'Not Set (Using Default)'}</code>
+                                        </div>
+                                    </div>
+                                    {hostnameStatus && (
+                                        <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide ${hostnameStatus.status === 'ok' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {hostnameStatus.msg}
+                                        </span>
+                                    )}
+                                </div>
+                                {!hostnameStatus && result.rdns?.status === 'ok' && (
+                                    <div className="mt-2 text-xs text-yellow-700">
+                                        Warning: You should configure your Server Hostname in "Account Settings" to match your PTR: <strong>{result.rdns.ptrs[0]}</strong>
                                     </div>
                                 )}
                             </div>
