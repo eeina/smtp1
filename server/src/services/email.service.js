@@ -1,6 +1,7 @@
 const dns = require('dns').promises;
     const nodemailer = require('nodemailer');
     const Mailbox = require('../models/Mailbox');
+    const Domain = require('../models/Domain');
     const EmailMessage = require('../models/EmailMessage');
     const SystemConfig = require('../models/SystemConfig');
     const logger = require('../config/logger');
@@ -10,11 +11,11 @@ const dns = require('dns').promises;
      */
     const deliverExternal = async (senderEmail, recipientEmail, subject, text, html) => {
       try {
-        const domainPart = recipientEmail.split('@')[1];
-        if (!domainPart) throw new Error('Invalid recipient domain');
+        const recipientDomain = recipientEmail.split('@')[1];
+        if (!recipientDomain) throw new Error('Invalid recipient domain');
     
         // 1. Resolve MX Records
-        const mxRecords = await dns.resolveMx(domainPart);
+        const mxRecords = await dns.resolveMx(recipientDomain);
         if (!mxRecords || mxRecords.length === 0) throw new Error('No MX records found for domain');
     
         // Sort by priority (lowest number first)
@@ -22,9 +23,11 @@ const dns = require('dns').promises;
         
         logger.info(`Resolving delivery for ${recipientEmail}: via ${bestMx}`);
     
-        // 2. Prepare DKIM Signing (if sender is local)
-        const senderMailbox = await Mailbox.findOne({ email: senderEmail }).populate('domain_id');
+        // 2. Prepare DKIM Signing
         let dkimOptions = undefined;
+        
+        // Check if sender is a Mailbox first
+        const senderMailbox = await Mailbox.findOne({ email: senderEmail }).populate('domain_id');
     
         if (senderMailbox && senderMailbox.domain_id && senderMailbox.domain_id.dkim_private_key) {
           dkimOptions = {
@@ -32,6 +35,19 @@ const dns = require('dns').promises;
             keySelector: 'default',
             privateKey: senderMailbox.domain_id.dkim_private_key
           };
+        } else {
+             // Fallback: Check if the domain itself exists and has keys (for System Emails)
+             const senderDomainPart = senderEmail.split('@')[1];
+             if (senderDomainPart) {
+                 const senderDomain = await Domain.findOne({ name: senderDomainPart.toLowerCase() });
+                 if (senderDomain && senderDomain.dkim_private_key) {
+                     dkimOptions = {
+                        domainName: senderDomain.name,
+                        keySelector: 'default',
+                        privateKey: senderDomain.dkim_private_key
+                    };
+                 }
+             }
         }
     
         // 3. Get System Config for HELO

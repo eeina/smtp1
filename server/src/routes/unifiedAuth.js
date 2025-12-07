@@ -93,7 +93,7 @@ router.post('/forgot-password', async (req, res) => {
         await Otp.create({ email, otp });
 
         // Send Email
-        await emailService.sendSystemEmail(
+        const sent = await emailService.sendSystemEmail(
             recoveryEmail,
             "Password Reset OTP",
             `Your OTP for ${email} is: ${otp}. It expires in 10 minutes.`,
@@ -104,6 +104,10 @@ router.post('/forgot-password', async (req, res) => {
                 <p>If you did not request this, please ignore this email.</p>
              </div>`
         );
+
+        if (!sent) {
+             return res.status(500).json({ error: "Failed to deliver OTP email. Please check server logs for SMTP errors." });
+        }
 
         res.json({ message: "OTP sent to recovery email", hasRecovery: true });
 
