@@ -121,22 +121,23 @@ const sendEmail = async (from, to, subject, text, html) => {
 
 /**
  * Sends a system notification (e.g. OTP)
+ * Prioritizes verified domains to ensure DKIM signing.
  */
 const sendSystemEmail = async (to, subject, text, html) => {
-    let from = 'noreply@system.local';
+    let from = 'noreply@system.local'; // Default fallback
+    
     try {
-        const config = await SystemConfig.findOne({ singleton: true });
+        // 1. Priority: Use a Verified Domain (noreply@verified.com)
+        const validDomain = await Domain.findOne({ is_verified: true });
         
-        // 1. Try Configured Email
-        if (config && config.system_email_address && !config.system_email_address.includes('system.local')) {
-            from = config.system_email_address;
-        } 
-        // 2. Fallback: Find ANY verified domain to ensure DKIM signing
-        else {
-            const validDomain = await Domain.findOne({ is_verified: true });
-            if (validDomain) {
-                from = `noreply@${validDomain.name}`;
-                logger.info(`System Email Auto-Config: Using ${from} to ensure delivery.`);
+        if (validDomain) {
+            from = `noreply@${validDomain.name}`;
+            logger.info(`System Email: Auto-selected sender ${from} from verified domains.`);
+        } else {
+            // 2. Fallback: Check System Configuration
+            const config = await SystemConfig.findOne({ singleton: true });
+            if (config && config.system_email_address && !config.system_email_address.includes('system.local')) {
+                from = config.system_email_address;
             }
         }
     } catch (e) {
