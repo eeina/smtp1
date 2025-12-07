@@ -1,3 +1,5 @@
+import 'react';
+
 export interface User {
   email: string;
   company_name?: string;
@@ -36,48 +38,6 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       [elemName: string]: any;
-      div: any;
-      span: any;
-      p: any;
-      a: any;
-      h1: any;
-      h2: any;
-      h3: any;
-      h4: any;
-      h5: any;
-      h6: any;
-      img: any;
-      ul: any;
-      li: any;
-      ol: any;
-      button: any;
-      input: any;
-      textarea: any;
-      select: any;
-      option: any;
-      form: any;
-      label: any;
-      nav: any;
-      main: any;
-      header: any;
-      footer: any;
-      section: any;
-      article: any;
-      aside: any;
-      table: any;
-      thead: any;
-      tbody: any;
-      tr: any;
-      th: any;
-      td: any;
-      strong: any;
-      b: any;
-      i: any;
-      small: any;
-      svg: any;
-      path: any;
-      circle: any;
-      iframe: any;
     }
   }
 }

@@ -15,6 +15,9 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
   const [composeBody, setComposeBody] = useState('');
   const [sending, setSending] = useState(false);
 
+  // Settings Modal State
+  const [showSettings, setShowSettings] = useState(false);
+
   const fetchMessages = async () => {
     try {
       const res = await api.get('/api/webmail/messages');
@@ -86,7 +89,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
           <p className="text-xs text-slate-400 mt-1 truncate">{user.email}</p>
         </div>
         
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <button 
             onClick={() => setShowCompose(true)}
             className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -96,9 +99,20 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
             </svg>
             Compose
           </button>
+          
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="w-full flex items-center justify-center px-4 py-2 border border-slate-600 rounded-md shadow-sm text-sm font-medium text-slate-200 bg-slate-700 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Connection Info
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2">
+        <nav className="flex-1 px-4 space-y-2 mt-4">
           <button 
             onClick={() => { setView('inbox'); setSelectedMsg(null); }}
             className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium flex justify-between ${view === 'inbox' ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
@@ -209,88 +223,99 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
       {showCompose && (
         <div className="absolute inset-0 z-50 overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            {/* Backdrop */}
             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
               <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={() => !sending && setShowCompose(false)}></div>
             </div>
-
-            {/* Modal Panel */}
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
               <form onSubmit={handleSend}>
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg leading-6 font-medium text-gray-900">New Message</h3>
-                    <button 
-                      type="button" 
-                      onClick={() => setShowCompose(false)} 
-                      disabled={sending}
-                      className="text-gray-400 hover:text-gray-500 focus:outline-none"
-                    >
+                    <button type="button" onClick={() => setShowCompose(false)} disabled={sending} className="text-gray-400 hover:text-gray-500 focus:outline-none">
                       <span className="sr-only">Close</span>
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
-                  
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="to" className="block text-sm font-medium text-gray-700">To</label>
-                      <input 
-                        type="text" 
-                        id="to" 
-                        required
-                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2 border"
-                        placeholder="recipient@example.com"
-                        value={composeTo}
-                        onChange={e => setComposeTo(e.target.value)}
-                        disabled={sending}
-                      />
+                      <input type="text" id="to" required className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2 border" placeholder="recipient@example.com" value={composeTo} onChange={e => setComposeTo(e.target.value)} disabled={sending} />
                     </div>
                     <div>
                       <label htmlFor="subject" className="block text-sm font-medium text-gray-700">Subject</label>
-                      <input 
-                        type="text" 
-                        id="subject" 
-                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2 border"
-                        placeholder="Subject"
-                        value={composeSubject}
-                        onChange={e => setComposeSubject(e.target.value)}
-                        disabled={sending}
-                      />
+                      <input type="text" id="subject" className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2 border" placeholder="Subject" value={composeSubject} onChange={e => setComposeSubject(e.target.value)} disabled={sending} />
                     </div>
                     <div>
                       <label htmlFor="body" className="block text-sm font-medium text-gray-700">Message</label>
-                      <textarea 
-                        id="body" 
-                        rows={8}
-                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2 border"
-                        value={composeBody}
-                        onChange={e => setComposeBody(e.target.value)}
-                        disabled={sending}
-                      ></textarea>
+                      <textarea id="body" rows={8} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md px-3 py-2 border" value={composeBody} onChange={e => setComposeBody(e.target.value)} disabled={sending}></textarea>
                     </div>
                   </div>
                 </div>
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                  <button 
-                    type="submit" 
-                    disabled={sending}
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-                  >
+                  <button type="submit" disabled={sending} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
                     {sending ? <Spinner /> : 'Send Message'}
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowCompose(false)}
-                    disabled={sending}
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                  >
-                    Cancel
-                  </button>
+                  <button type="button" onClick={() => setShowCompose(false)} disabled={sending} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connection Settings Modal */}
+      {showSettings && (
+        <div className="absolute inset-0 z-50 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={() => setShowSettings(false)}></div>
+            </div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">External App Configuration</h3>
+                  <button type="button" onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-500">
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-100 rounded-md p-3 text-sm text-blue-800">
+                    Use these settings to connect external applications (like Outlook, Printer, Contact Forms) to <strong>send</strong> email via this account.
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-y-3 gap-x-4 text-sm">
+                    <div className="font-semibold text-gray-500">Server Host</div>
+                    <div className="col-span-2 font-mono bg-gray-50 px-2 py-1 rounded border">{window.location.hostname}</div>
+
+                    <div className="font-semibold text-gray-500">SMTP Port</div>
+                    <div className="col-span-2 font-mono bg-gray-50 px-2 py-1 rounded border">587 (Submission)</div>
+
+                    <div className="font-semibold text-gray-500">Username</div>
+                    <div className="col-span-2 font-mono bg-gray-50 px-2 py-1 rounded border select-all">{user.email}</div>
+
+                    <div className="font-semibold text-gray-500">Password</div>
+                    <div className="col-span-2 italic text-gray-400">Your mailbox password</div>
+
+                    <div className="font-semibold text-gray-500">Encryption</div>
+                    <div className="col-span-2">STARTTLS (Optional/None)</div>
+                  </div>
+
+                  <div className="border-t pt-3 mt-4">
+                    <h4 className="text-sm font-bold text-gray-800 mb-2">Incoming Mail (IMAP/POP3)</h4>
+                    <p className="text-sm text-gray-600">
+                      External read access (IMAP) is currently <strong>disabled</strong>. You can only read your emails via this Webmail interface. External apps can only be used for <strong>sending</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" onClick={() => setShowSettings(false)} className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
