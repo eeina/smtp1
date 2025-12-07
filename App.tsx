@@ -33,6 +33,12 @@ export default function App() {
     setView('landing');
   };
 
+  const handleUserUpdate = (updates: Partial<User>) => {
+    if (user) {
+        setUser({ ...user, ...updates });
+    }
+  };
+
   return (
     <>
       {view === 'landing' && <LandingView onNavigate={(v) => setView(v as any)} />}
@@ -46,7 +52,7 @@ export default function App() {
       )}
       
       {view === 'client-dashboard' && user && (
-        <ClientDashboard user={user} onLogout={handleLogout} />
+        <ClientDashboard user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
       )}
       
       {view === 'webmail-dashboard' && user && (

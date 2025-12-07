@@ -12,6 +12,8 @@ import MailboxManager from './dashboard/MailboxManager';
 import DnsConfigModal from './dashboard/modals/DnsConfigModal';
 import SystemLogsModal from './dashboard/modals/SystemLogsModal';
 import DiagnosticsModal from './dashboard/modals/DiagnosticsModal';
+import AccountSettingsModal from './dashboard/modals/AccountSettingsModal';
+import EditMailboxModal from './dashboard/modals/EditMailboxModal';
 
 // Types
 interface SystemLog {
@@ -28,7 +30,13 @@ interface DiagnosticResult {
   timestamp: string;
 }
 
-const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
+interface Props {
+    user: User;
+    onLogout: () => void;
+    onUserUpdate: (u: Partial<User>) => void;
+}
+
+const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [newDomain, setNewDomain] = useState('');
@@ -52,6 +60,12 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
   const [runningDiagnostics, setRunningDiagnostics] = useState(false);
+
+  // Account Settings State
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+
+  // Edit Mailbox State
+  const [editingMailbox, setEditingMailbox] = useState<Mailbox | null>(null);
 
   const refreshData = async () => {
     try {
@@ -186,6 +200,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
         user={user} 
         onLogout={onLogout} 
         onShowLogs={() => setShowLogs(true)} 
+        onOpenSettings={() => setShowAccountSettings(true)}
       />
 
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -223,6 +238,7 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
             <MailboxManager 
                 mailboxes={mailboxes} 
                 onDeleteMailbox={handleDeleteMailbox}
+                onEditMailbox={(mb) => setEditingMailbox(mb)}
             />
           </div>
 
@@ -253,6 +269,22 @@ const ClientDashboard = ({ user, onLogout }: { user: User, onLogout: () => void 
             result={diagnosticResult}
             running={runningDiagnostics}
             onClose={() => !runningDiagnostics && setShowDiagnostics(false)}
+        />
+      )}
+
+      {showAccountSettings && (
+        <AccountSettingsModal
+            user={user}
+            onClose={() => setShowAccountSettings(false)}
+            onUpdate={onUserUpdate}
+        />
+      )}
+
+      {editingMailbox && (
+        <EditMailboxModal 
+            mailbox={editingMailbox}
+            onClose={() => setEditingMailbox(null)}
+            onSuccess={() => { setEditingMailbox(null); refreshData(); }}
         />
       )}
 

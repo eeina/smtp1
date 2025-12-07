@@ -4,9 +4,10 @@ import { Mailbox } from '../../types';
 interface Props {
   mailboxes: Mailbox[];
   onDeleteMailbox: (id: string) => void;
+  onEditMailbox: (mailbox: Mailbox) => void;
 }
 
-const MailboxManager = ({ mailboxes, onDeleteMailbox }: Props) => {
+const MailboxManager = ({ mailboxes, onDeleteMailbox, onEditMailbox }: Props) => {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden h-fit">
       <div className="p-6 border-b border-gray-100 flex justify-between items-center">
@@ -29,10 +30,20 @@ const MailboxManager = ({ mailboxes, onDeleteMailbox }: Props) => {
                 </div>
                 <div className="min-w-0">
                     <div className="text-sm font-semibold text-gray-800 truncate" title={mb.email}>{mb.email}</div>
-                    <div className="text-xs text-gray-400">1 GB Storage</div>
+                    <div className="text-xs text-gray-400">
+                        {/* Display quota if exists in object, otherwise default 1GB */}
+                        {(mb as any).quota_bytes ? Math.round((mb as any).quota_bytes / 1024 / 1024 / 1024) + ' GB' : '1 GB'}
+                    </div>
                 </div>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center gap-1">
+                 <button 
+                    onClick={() => onEditMailbox(mb)}
+                    className="text-gray-300 hover:text-blue-600 p-2 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                    title="Edit Mailbox"
+                 >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                 </button>
                  <button 
                     onClick={() => onDeleteMailbox(mb._id)}
                     className="text-gray-300 hover:text-red-600 p-2 rounded-md transition-colors opacity-0 group-hover:opacity-100"

@@ -10,6 +10,7 @@ const seedDatabase = require('./src/config/seed');
 
 // Routes Imports
 const clientAuthRoutes = require('./src/routes/clientAuth');
+const accountRoutes = require('./src/routes/account');
 const domainRoutes = require('./src/routes/domains');
 const mailboxRoutes = require('./src/routes/mailboxes');
 const webmailRoutes = require('./src/routes/webmail');
@@ -55,6 +56,7 @@ mongoose.connect(process.env.MONGO_URI)
 
 // --- MOUNT ROUTES ---
 app.use('/api/auth', clientAuthRoutes);
+app.use('/api/account', accountRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/mailboxes', mailboxRoutes);
 app.use('/api/webmail', webmailRoutes);
