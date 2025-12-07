@@ -48,6 +48,24 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
     }
   };
 
+  const handleDetectHostname = async () => {
+    setServerLoading(true);
+    setServerMsg({ type: '', text: '' });
+    try {
+        const res = await api.get('/api/system/diagnostics');
+        if (res.data.rdns && res.data.rdns.ptrs && res.data.rdns.ptrs.length > 0) {
+            setSmtpHostname(res.data.rdns.ptrs[0]);
+            setServerMsg({ type: 'success', text: `Detected: ${res.data.rdns.ptrs[0]}` });
+        } else {
+             setServerMsg({ type: 'error', text: 'Could not detect PTR record automatically. Please enter it manually.' });
+        }
+    } catch (err) {
+        setServerMsg({ type: 'error', text: 'Detection failed.' });
+    } finally {
+        setServerLoading(false);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileLoading(true);
@@ -218,13 +236,23 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
                     )}
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Server Hostname (HELO/EHLO)</label>
-                        <input 
-                            type="text" 
-                            className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-mono"
-                            placeholder="e.g. mail.your-domain.com"
-                            value={smtpHostname}
-                            onChange={e => setSmtpHostname(e.target.value)}
-                        />
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                className="flex-1 border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none font-mono"
+                                placeholder="e.g. mail.your-domain.com"
+                                value={smtpHostname}
+                                onChange={e => setSmtpHostname(e.target.value)}
+                            />
+                            <button
+                                type="button"
+                                onClick={handleDetectHostname}
+                                disabled={serverLoading}
+                                className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-200 transition border border-gray-200 whitespace-nowrap"
+                            >
+                                {serverLoading ? 'Detecting...' : 'Auto-Detect'}
+                            </button>
+                        </div>
                         <p className="text-xs text-gray-400 mt-2 leading-relaxed">
                             This hostname is announced to other mail servers. For best deliverability, this <strong>must match</strong> your Reverse DNS (PTR) record.
                         </p>
@@ -233,7 +261,7 @@ const AccountSettingsModal = ({ user, onClose, onUpdate }: Props) => {
                     <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
                          <h4 className="text-xs font-bold text-blue-800 uppercase mb-1">Recommendation</h4>
                          <p className="text-xs text-blue-700">
-                             If your PTR is <code>srv123.host.com</code>, set this to <code>srv123.host.com</code>.
+                             Use the Auto-Detect button above to find your correct hostname from your server provider.
                          </p>
                     </div>
 
