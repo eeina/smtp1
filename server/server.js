@@ -23,8 +23,16 @@ const app = express();
 
 // Security & Middleware
 app.use(helmet());
-// Configure CORS for your specific frontend domain
-app.use(cors({ origin: 'https://smtp.eeina.com' }));
+
+// More specific CORS configuration for production
+const corsOptions = {
+  origin: 'https://smtp.eeina.com',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // Database Connection
