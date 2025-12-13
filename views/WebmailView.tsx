@@ -37,6 +37,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
   // Compose Pre-fill State (for replies)
   const [composeTo, setComposeTo] = useState('');
   const [composeSubject, setComposeSubject] = useState('');
+  const [composeBody, setComposeBody] = useState('');
 
   // Fetch Messages
   const fetchMessages = useCallback(async (isPolling = false) => {
@@ -130,35 +131,26 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
     const replyTo = view === 'inbox' ? selectedMsg.from : selectedMsg.to;
     const replySubject = selectedMsg.subject.startsWith('Re:') ? selectedMsg.subject : `Re: ${selectedMsg.subject}`;
     
-    // Injecting content into the compose window via DOM manipulation is tricky with state separation.
-    // We will pass the subject/to and let the user type. 
-    // In a full implementation, we'd pass the html body to the compose component.
-    // For now, let's keep it simple as requested for structure.
-    
+    const dateStr = new Date(selectedMsg.created_at).toLocaleString();
+    const cleanFrom = selectedMsg.from.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const originalContent = selectedMsg.html_body || selectedMsg.text_body.replace(/\n/g, '<br>');
+
+    // Standard blockquote style for email replies
+    const quoteHtml = `<p><br></p><p><br></p><blockquote style="margin: 0 0 0 0.8ex; border-left: 1px #ccc solid; padding-left: 1ex;">
+    On ${dateStr}, ${cleanFrom} wrote:<br>
+    ${originalContent}
+    </blockquote>`;
+
     setComposeTo(replyTo);
     setComposeSubject(replySubject);
+    setComposeBody(quoteHtml);
     setShowCompose(true);
-    
-    // Hack to inject quote if needed, or we rely on user manually quoting for now.
-    // The Compose component handles fresh state.
-    
-    // We can try to update the content after render, but let's stick to clean props first.
-    setTimeout(() => {
-        const editor = document.getElementById('compose-editor');
-        if (editor) {
-            const quoteHtml = `<br><br><blockquote style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 5px; color: #666;">
-            On ${new Date(selectedMsg.created_at).toLocaleString()}, <strong>${selectedMsg.from}</strong> wrote:<br>
-            ${selectedMsg.html_body || selectedMsg.text_body}
-            </blockquote><br>`;
-            editor.innerHTML = quoteHtml;
-            // focus logic if needed
-        }
-    }, 100);
   };
 
   const handleCompose = () => {
       setComposeTo('');
       setComposeSubject('');
+      setComposeBody('');
       setShowCompose(true);
   };
 
@@ -221,6 +213,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
         onClose={() => setShowCompose(false)}
         initialTo={composeTo}
         initialSubject={composeSubject}
+        initialBody={composeBody}
         onSuccess={() => {
             if (view === 'sent') fetchMessages();
         }}

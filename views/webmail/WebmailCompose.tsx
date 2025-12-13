@@ -8,6 +8,7 @@ interface Props {
   onClose: () => void;
   initialTo?: string;
   initialSubject?: string;
+  initialBody?: string;
   onSuccess: () => void;
 }
 
@@ -44,7 +45,7 @@ const RichTextToolbar = ({ onCmd, onImage }: { onCmd: (cmd: string, val?: string
     );
 };
 
-const WebmailCompose = ({ show, onClose, initialTo, initialSubject, onSuccess }: Props) => {
+const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody, onSuccess }: Props) => {
   const { addToast } = useToast();
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
@@ -65,16 +66,30 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, onSuccess }:
         setCc('');
         setBcc('');
         setAttachments([]);
+        
+        // Initialize Editor Content
         if(editorRef.current) {
-            // If it's a reply (initialSubject present and starts with Re:), we might want to pre-fill content, 
-            // but the parent handles that by setting innerHTML directly if needed. 
-            // Here we just clear if it's a fresh compose.
-            // Note: The parent component in previous implementation handled reply content injection.
-            // We'll leave the content empty for fresh compose.
-             if(!initialSubject) editorRef.current.innerHTML = '';
+             editorRef.current.innerHTML = initialBody || '';
+             
+             // Focus handling with slight delay to ensure render
+             setTimeout(() => {
+                 if (editorRef.current) {
+                     editorRef.current.focus();
+                     
+                     // If replying (initialBody present), ensure cursor is at the very top
+                     if (initialBody) {
+                         const selection = window.getSelection();
+                         const range = document.createRange();
+                         range.setStart(editorRef.current, 0);
+                         range.collapse(true);
+                         selection?.removeAllRanges();
+                         selection?.addRange(range);
+                     }
+                 }
+             }, 50);
         }
     }
-  }, [show, initialTo, initialSubject]);
+  }, [show, initialTo, initialSubject, initialBody]);
 
   if (!show) return null;
 
