@@ -46,7 +46,7 @@ const emailMessageSchema = new mongoose.Schema({
   attachments: [{
     filename: String,
     contentType: String,
-    content: Buffer,
+    gridfs_id: mongoose.Schema.Types.ObjectId, // Link to GridFS bucket
     size: Number
   }],
   is_read: {

@@ -12,6 +12,16 @@ interface Props {
   onSuccess: () => void;
 }
 
+const MAX_FILE_SIZE_MB = 150; // High limit now supported by GridFS backend
+
+const formatSize = (bytes: number) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
 const RichTextToolbar = ({ onCmd, onImage }: { onCmd: (cmd: string, val?: string) => void, onImage: () => void }) => {
     const Btn = ({ cmd, label, val }: any) => (
         <button 
@@ -67,16 +77,11 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
         setBcc('');
         setAttachments([]);
         
-        // Initialize Editor Content
         if(editorRef.current) {
              editorRef.current.innerHTML = initialBody || '';
-             
-             // Focus handling with slight delay to ensure render
              setTimeout(() => {
                  if (editorRef.current) {
                      editorRef.current.focus();
-                     
-                     // If replying (initialBody present), ensure cursor is at the very top
                      if (initialBody) {
                          const selection = window.getSelection();
                          const range = document.createRange();
@@ -95,8 +100,16 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-        const filesArray = Array.from(e.target.files);
-        setAttachments(prev => [...prev, ...filesArray]);
+        const filesArray = Array.from(e.target.files) as File[];
+        const oversizedFiles = filesArray.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
+        
+        if (oversizedFiles.length > 0) {
+            addToast(`One or more files exceed the ${MAX_FILE_SIZE_MB}MB limit`, 'error');
+            const validFiles = filesArray.filter(f => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
+            setAttachments(prev => [...prev, ...validFiles]);
+        } else {
+            setAttachments(prev => [...prev, ...filesArray]);
+        }
     }
   };
 
@@ -126,6 +139,11 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!editorRef.current) return;
+
+    const totalSize = attachments.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > 160 * 1024 * 1024) { 
+        addToast('Total payload is extremely large. Consider sending smaller batches.', 'info');
+    }
     
     setSending(true);
     const htmlBody = editorRef.current.innerHTML;
@@ -148,9 +166,9 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
       
       onSuccess();
       onClose();
-      addToast('Message sent successfully', 'success');
+      addToast('Large message delivered successfully', 'success');
     } catch (err: any) {
-      addToast(err.response?.data?.error || 'Failed to send message', 'error');
+      addToast(err.response?.data?.error || 'Failed to send large message', 'error');
     } finally {
       setSending(false);
     }
@@ -168,6 +186,12 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
             
             <form onSubmit={handleSend} className="flex-1 flex flex-col min-h-0">
                 <div className="px-4 sm:px-6 py-4 space-y-4 overflow-y-auto flex-1">
+                    {attachments.some(f => f.size > 20 * 1024 * 1024) && (
+                        <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex gap-3 items-center">
+                            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <p className="text-xs text-blue-700">Large files detected. Uploading will be handled via GridFS storage.</p>
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
                             <span className="text-sm font-semibold text-gray-500 w-10">To</span>
@@ -197,10 +221,11 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
                     {attachments.length > 0 && (
                         <div className="flex flex-wrap gap-2 pt-2">
                             {attachments.map((file, idx) => (
-                                <div key={idx} className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-xs text-gray-700 border border-gray-200">
+                                <div key={idx} className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-[10px] text-gray-700 border border-gray-200 shadow-sm">
                                     <svg className="w-3 h-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                    <span className="max-w-[150px] truncate">{file.name}</span>
-                                    <button type="button" onClick={() => removeAttachment(idx)} className="hover:text-red-500"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                    <span className="max-w-[120px] truncate font-medium">{file.name}</span>
+                                    <span className="text-gray-400 font-normal">({formatSize(file.size)})</span>
+                                    <button type="button" onClick={() => removeAttachment(idx)} className="ml-1 p-0.5 hover:bg-gray-200 rounded-full transition-colors"><svg className="w-3 h-3 text-gray-400 hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                                 </div>
                             ))}
                         </div>
@@ -214,7 +239,11 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
                     </div>
                     <div className="flex items-center gap-3">
                         <button type="button" onClick={onClose} className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">Discard</button>
-                        <button type="submit" disabled={sending} className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm">{sending && <Spinner />} Send</button>
+                        <button type="submit" disabled={sending} className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm">
+                            {sending ? (
+                                <><Spinner /> Sending Large Files...</>
+                            ) : 'Send'}
+                        </button>
                     </div>
                 </div>
             </form>
