@@ -8,11 +8,19 @@ const { authenticateWebmail } = require('../middleware/auth');
 const logger = require('../config/logger');
 const emailService = require('../services/email.service');
 
+// Helper to safely convert base64 strings (with or without data prefix) to Buffers
+const base64ToBuffer = (base64String) => {
+    if (!base64String) return Buffer.alloc(0);
+    const parts = base64String.split('base64,');
+    const raw = parts.length > 1 ? parts[1] : parts[0];
+    return Buffer.from(raw, 'base64');
+};
+
 // Webmail Login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const mailbox = await Mailbox.findOne({ email });
+    const mailbox = await Mailbox.findOne({ email: email.toLowerCase() });
     if (!mailbox) return res.status(400).json({ error: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, mailbox.password_hash);
@@ -36,10 +44,7 @@ router.post('/login', async (req, res) => {
 router.put('/password', authenticateWebmail, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
-    if (!newPassword || newPassword.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters' });
-    }
+    if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
 
     const mailbox = await Mailbox.findById(req.user.mailbox_id);
     if (!mailbox) return res.status(404).json({ error: 'Mailbox not found' });
@@ -82,15 +87,11 @@ router.get('/messages', authenticateWebmail, async (req, res) => {
     const folder = req.query.folder || 'inbox';
     const skip = (page - 1) * limit;
 
-    const query = { 
-        mailbox_id: req.user.mailbox_id,
-        folder: folder
-    };
+    const query = { mailbox_id: req.user.mailbox_id, folder: folder };
 
-    // Exclude actual attachment content to keep list response small
     const [messages, total] = await Promise.all([
         EmailMessage.find(query)
-          .select('-attachments.content')
+          .select('-attachments.content') // Exclude binary to keep list light
           .sort({ created_at: -1 })
           .skip(skip)
           .limit(limit),
@@ -99,11 +100,7 @@ router.get('/messages', authenticateWebmail, async (req, res) => {
 
     res.json({
         messages,
-        pagination: {
-            total,
-            page,
-            pages: Math.ceil(total / limit)
-        }
+        pagination: { total, page, pages: Math.ceil(total / limit) }
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch messages' });
@@ -113,11 +110,7 @@ router.get('/messages', authenticateWebmail, async (req, res) => {
 // Download Attachment
 router.get('/messages/:id/download/:filename', authenticateWebmail, async (req, res) => {
   try {
-    const message = await EmailMessage.findOne({
-      _id: req.params.id,
-      mailbox_id: req.user.mailbox_id
-    });
-
+    const message = await EmailMessage.findOne({ _id: req.params.id, mailbox_id: req.user.mailbox_id });
     if (!message) return res.status(404).json({ error: 'Message not found' });
 
     const attachment = message.attachments.find(att => att.filename === req.params.filename);
@@ -152,12 +145,7 @@ router.post('/messages/batch-delete', authenticateWebmail, async (req, res) => {
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: 'Invalid IDs provided' });
-
-        await EmailMessage.deleteMany({
-            _id: { $in: ids },
-            mailbox_id: req.user.mailbox_id
-        });
-
+        await EmailMessage.deleteMany({ _id: { $in: ids }, mailbox_id: req.user.mailbox_id });
         res.json({ message: 'Messages deleted' });
     } catch (err) {
         logger.error('Batch Delete Error:', err);
@@ -168,13 +156,8 @@ router.post('/messages/batch-delete', authenticateWebmail, async (req, res) => {
 // Delete Single Message
 router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
   try {
-    const msg = await EmailMessage.findOneAndDelete({
-      _id: req.params.id,
-      mailbox_id: req.user.mailbox_id
-    });
-    
+    const msg = await EmailMessage.findOneAndDelete({ _id: req.params.id, mailbox_id: req.user.mailbox_id });
     if (!msg) return res.status(404).json({ error: 'Message not found' });
-    
     res.json({ message: 'Message deleted successfully' });
   } catch (err) {
     logger.error('Delete Message Error:', err);
@@ -186,37 +169,33 @@ router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
 router.post('/send', authenticateWebmail, async (req, res) => {
   try {
     const { to, cc, bcc, subject, htmlBody, attachments } = req.body;
-    
     if (!to) return res.status(400).json({ error: 'Recipient required' });
 
     const senderMailboxId = req.user.mailbox_id;
     const senderEmail = req.user.email;
-
-    // Fetch full mailbox details to get Name
     const sender = await Mailbox.findById(senderMailboxId);
     
-    // Construct Friendly Name Header: "John Doe" <john@example.com>
     let fromHeader = senderEmail;
     if (sender && (sender.first_name || sender.last_name)) {
         const fullName = `${sender.first_name || ''} ${sender.last_name || ''}`.trim();
         fromHeader = `"${fullName}" <${senderEmail}>`;
     }
 
-    // 1. Prepare Content
     const safeHtml = `<div style="font-family: sans-serif;">${htmlBody}</div>`;
-    // Create plain text fallback (simple strip tags)
     const plainText = htmlBody.replace(/<[^>]+>/g, ' ');
 
-    // 2. Prepare Attachments for Nodemailer and DB
-    // Frontend sends: { filename, content: "base64string...", contentType }
-    const processedAttachments = attachments ? attachments.map(att => ({
-        filename: att.filename,
-        content: Buffer.from(att.content.split('base64,')[1], 'base64'),
-        contentType: att.contentType,
-        size: Buffer.from(att.content.split('base64,')[1], 'base64').length
-    })) : [];
+    // Robust attachment processing
+    const processedAttachments = attachments ? attachments.map(att => {
+        const buffer = base64ToBuffer(att.content);
+        return {
+            filename: att.filename,
+            content: buffer,
+            contentType: att.contentType,
+            size: buffer.length
+        };
+    }) : [];
 
-    // 3. Save to Sender's Sent Folder
+    // 1. Save to Sender's Sent Folder
     await EmailMessage.create({
       mailbox_id: senderMailboxId,
       direction: 'outbound',
@@ -233,13 +212,11 @@ router.post('/send', authenticateWebmail, async (req, res) => {
       is_read: true
     });
 
-    // 4. Process Delivery
+    // 2. Process Delivery
     const recipients = to.split(/[;,]+/).map(r => r.trim()).filter(r => r);
     const ccRecipients = cc ? cc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : [];
     const bccRecipients = bcc ? bcc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : [];
     
-    // Combine all unique recipients to iterate over for delivery
-    // Note: We iterate because our `sendEmail` service handles internal vs external routing *per recipient*.
     const allRecipients = new Set([...recipients, ...ccRecipients, ...bccRecipients]);
 
     for (const recipientEmail of allRecipients) {
