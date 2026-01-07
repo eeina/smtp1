@@ -2,13 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import api from '../../api';
 import Spinner from '../../components/Spinner';
 import { useToast } from '../../components/ToastContext';
+import { User } from '../../types';
 
 interface Props {
   show: boolean;
+  user: User;
   onClose: () => void;
   initialTo?: string;
   initialSubject?: string;
   initialBody?: string;
+  initialDraftId?: string;
   onSuccess: () => void;
 }
 
@@ -55,7 +58,7 @@ const RichTextToolbar = ({ onCmd, onImage }: { onCmd: (cmd: string, val?: string
     );
 };
 
-const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody, onSuccess }: Props) => {
+const WebmailCompose = ({ show, user, onClose, initialTo, initialSubject, initialBody, initialDraftId, onSuccess }: Props) => {
   const { addToast } = useToast();
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
@@ -64,6 +67,8 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
   const [showBcc, setShowBcc] = useState(false);
   const [subject, setSubject] = useState('');
   const [sending, setSending] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftId, setDraftId] = useState<string | undefined>();
   const [attachments, setAttachments] = useState<File[]>([]);
   
   const editorRef = useRef<HTMLDivElement>(null);
@@ -76,40 +81,38 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
         setCc('');
         setBcc('');
         setAttachments([]);
+        setDraftId(initialDraftId);
         
         if(editorRef.current) {
-             editorRef.current.innerHTML = initialBody || '';
+             let bodyContent = initialBody || '';
+             // If it's a new email (not a reply/draft), append signature
+             if (!initialBody && user.signature) {
+                 bodyContent = `<p><br></p><p><br></p><div class="signature" style="color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0; padding-top: 8px;">${user.signature.replace(/\n/g, '<br>')}</div>`;
+             }
+             editorRef.current.innerHTML = bodyContent;
              setTimeout(() => {
                  if (editorRef.current) {
                      editorRef.current.focus();
-                     if (initialBody) {
-                         const selection = window.getSelection();
-                         const range = document.createRange();
-                         range.setStart(editorRef.current, 0);
-                         range.collapse(true);
-                         selection?.removeAllRanges();
-                         selection?.addRange(range);
-                     }
+                     // Set cursor at start
+                     const selection = window.getSelection();
+                     const range = document.createRange();
+                     range.setStart(editorRef.current, 0);
+                     range.collapse(true);
+                     selection?.removeAllRanges();
+                     selection?.addRange(range);
                  }
              }, 50);
         }
     }
-  }, [show, initialTo, initialSubject, initialBody]);
+  }, [show, initialTo, initialSubject, initialBody, initialDraftId, user.signature]);
 
   if (!show) return null;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
         const filesArray = Array.from(e.target.files) as File[];
-        const oversizedFiles = filesArray.filter(f => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
-        
-        if (oversizedFiles.length > 0) {
-            addToast(`One or more files exceed the ${MAX_FILE_SIZE_MB}MB limit`, 'error');
-            const validFiles = filesArray.filter(f => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
-            setAttachments(prev => [...prev, ...validFiles]);
-        } else {
-            setAttachments(prev => [...prev, ...filesArray]);
-        }
+        const validFiles = filesArray.filter(f => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
+        setAttachments(prev => [...prev, ...validFiles]);
     }
   };
 
@@ -127,6 +130,26 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
       if(url) execCmd('insertImage', url);
   };
 
+  const handleSaveDraft = async () => {
+      if (!editorRef.current) return;
+      setSavingDraft(true);
+      try {
+          const res = await api.post('/api/webmail/messages/draft', {
+              id: draftId,
+              to,
+              subject,
+              htmlBody: editorRef.current.innerHTML
+          });
+          setDraftId(res.data._id);
+          addToast('Draft saved', 'info');
+          onSuccess();
+      } catch (err) {
+          addToast('Failed to save draft', 'error');
+      } finally {
+          setSavingDraft(false);
+      }
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!editorRef.current) return;
@@ -135,22 +158,20 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
     const htmlBody = editorRef.current.innerHTML;
 
     try {
-      // Use FormData instead of JSON to handle large binary files without Base64 overhead
       const formData = new FormData();
       formData.append('to', to);
       formData.append('cc', cc);
       formData.append('bcc', bcc);
       formData.append('subject', subject);
       formData.append('htmlBody', htmlBody);
+      if (draftId) formData.append('draftId', draftId);
       
       attachments.forEach(file => {
           formData.append('attachments', file);
       });
 
       await api.post('/api/webmail/send', formData, {
-          headers: {
-              'Content-Type': 'multipart/form-data'
-          }
+          headers: { 'Content-Type': 'multipart/form-data' }
       });
       
       onSuccess();
@@ -178,14 +199,7 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
                             <span className="text-sm font-semibold text-gray-500 w-10">To</span>
-                            <input 
-                                type="text" 
-                                value={to} 
-                                onChange={e => setTo(e.target.value)}
-                                className="flex-1 outline-none text-sm text-gray-800"
-                                placeholder="recipient@example.com"
-                                required 
-                            />
+                            <input type="text" value={to} onChange={e => setTo(e.target.value)} className="flex-1 outline-none text-sm text-gray-800" placeholder="recipient@example.com" required />
                             <div className="flex gap-2 text-xs text-gray-500">
                                 <button type="button" onClick={() => setShowCc(!showCc)} className="hover:text-gray-800 hover:underline">Cc</button>
                                 <button type="button" onClick={() => setShowBcc(!showBcc)} className="hover:text-gray-800 hover:underline">Bcc</button>
@@ -198,7 +212,7 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
                     
                     <div className="flex flex-col h-full min-h-[300px] border border-gray-200 rounded-lg overflow-hidden bg-white">
                         <RichTextToolbar onCmd={execCmd} onImage={handleInsertImage} />
-                        <div ref={editorRef} contentEditable id="compose-editor" className="flex-1 p-4 outline-none overflow-y-auto text-sm font-sans" style={{ minHeight: '200px' }}></div>
+                        <div ref={editorRef} contentEditable className="flex-1 p-4 outline-none overflow-y-auto text-sm font-sans" style={{ minHeight: '200px' }}></div>
                     </div>
                     
                     {attachments.length > 0 && (
@@ -219,13 +233,14 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
                     <div className="flex items-center gap-3">
                          <input type="file" multiple ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
                          <button type="button" onClick={() => fileInputRef.current?.click()} className="text-gray-500 hover:text-gray-900 hover:bg-gray-200 p-2 rounded-full transition-colors" title="Attach File"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg></button>
+                         <button type="button" onClick={handleSaveDraft} disabled={savingDraft} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-colors">
+                             {savingDraft ? 'Saving...' : 'Save Draft'}
+                         </button>
                     </div>
                     <div className="flex items-center gap-3">
                         <button type="button" onClick={onClose} className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">Discard</button>
                         <button type="submit" disabled={sending} className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm">
-                            {sending ? (
-                                <><Spinner /> Uploading...</>
-                            ) : 'Send'}
+                            {sending ? <><Spinner /> Uploading...</> : 'Send'}
                         </button>
                     </div>
                 </div>

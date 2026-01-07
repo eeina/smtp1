@@ -1,13 +1,12 @@
-
 import React from 'react';
 import { User, EmailMessage } from '../../types';
 
 interface Props {
   user: User;
-  view: 'inbox' | 'sent';
+  view: 'inbox' | 'sent' | 'drafts';
   messages: EmailMessage[];
   onCompose: () => void;
-  onViewChange: (view: 'inbox' | 'sent') => void;
+  onViewChange: (view: 'inbox' | 'sent' | 'drafts') => void;
   onSettings: () => void;
   onLogout: () => void;
 }
@@ -25,7 +24,7 @@ const WebmailSidebar = ({ user, view, messages, onCompose, onViewChange, onSetti
       <div className="p-6">
         <button 
           onClick={onCompose}
-          className="w-full flex items-center justify-center px-6 py-4 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-900/20 hover:bg-emerald-500 hover:scale-[1.02] transition-all font-black text-sm mb-10 transform active:scale-95"
+          className="w-full flex items-center justify-center px-6 py-4 bg-emerald-600 text-white rounded-2xl shadow-xl shadow-emerald-900/20 hover:bg-emerald-50 hover:scale-[1.02] transition-all font-black text-sm mb-10 transform active:scale-95"
         >
           <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
           Compose Message
@@ -38,6 +37,10 @@ const WebmailSidebar = ({ user, view, messages, onCompose, onViewChange, onSetti
               Inbox
             </div>
             {unreadCount > 0 && (<span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full">{unreadCount > 99 ? '99+' : unreadCount}</span>)}
+          </button>
+          <button onClick={() => onViewChange('drafts')} className={`w-full group flex items-center px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${view === 'drafts' ? 'bg-white/10 text-white shadow-inner' : 'hover:bg-white/5 text-slate-500 hover:text-white'}`}>
+             <svg className={`w-5 h-5 mr-4 transition-colors ${view === 'drafts' ? 'text-emerald-500' : 'text-slate-600 group-hover:text-emerald-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+             Drafts
           </button>
           <button onClick={() => onViewChange('sent')} className={`w-full group flex items-center px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${view === 'sent' ? 'bg-white/10 text-white shadow-inner' : 'hover:bg-white/5 text-slate-500 hover:text-white'}`}>
              <svg className={`w-5 h-5 mr-4 transition-colors ${view === 'sent' ? 'text-emerald-500' : 'text-slate-600 group-hover:text-emerald-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>

@@ -19,7 +19,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
   const [selectedMsg, setSelectedMsg] = useState<EmailMessage | null>(null);
   
   // View State
-  const [view, setView] = useState<'inbox' | 'sent'>('inbox');
+  const [view, setView] = useState<'inbox' | 'sent' | 'drafts'>('inbox');
   const [loadingMessages, setLoadingMessages] = useState(false);
   
   // Pagination State
@@ -34,10 +34,11 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
   const [showCompose, setShowCompose] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   
-  // Compose Pre-fill State (for replies)
+  // Compose Pre-fill State
   const [composeTo, setComposeTo] = useState('');
   const [composeSubject, setComposeSubject] = useState('');
   const [composeBody, setComposeBody] = useState('');
+  const [composeDraftId, setComposeDraftId] = useState<string | undefined>();
 
   // Fetch Messages
   const fetchMessages = useCallback(async (isPolling = false) => {
@@ -74,6 +75,15 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
 
   // Handlers
   const handleSelectMessage = async (msg: EmailMessage) => {
+    if (msg.folder === 'drafts') {
+        setComposeTo(msg.to);
+        setComposeSubject(msg.subject);
+        setComposeBody(msg.html_body || msg.text_body);
+        setComposeDraftId(msg._id);
+        setShowCompose(true);
+        return;
+    }
+
     setSelectedMsg(msg);
     if (!msg.is_read) {
         setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, is_read: true } : m));
@@ -135,7 +145,6 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
     const cleanFrom = selectedMsg.from.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const originalContent = selectedMsg.html_body || selectedMsg.text_body.replace(/\n/g, '<br>');
 
-    // Standard blockquote style for email replies
     const quoteHtml = `<p><br></p><p><br></p><blockquote style="margin: 0 0 0 0.8ex; border-left: 1px #ccc solid; padding-left: 1ex;">
     On ${dateStr}, ${cleanFrom} wrote:<br>
     ${originalContent}
@@ -144,6 +153,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
     setComposeTo(replyTo);
     setComposeSubject(replySubject);
     setComposeBody(quoteHtml);
+    setComposeDraftId(undefined);
     setShowCompose(true);
   };
 
@@ -151,6 +161,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
       setComposeTo('');
       setComposeSubject('');
       setComposeBody('');
+      setComposeDraftId(undefined);
       setShowCompose(true);
   };
 
@@ -196,7 +207,6 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
       />
 
       {/* 4. Mobile Bottom Navigation */}
-      {/* Hide nav if reading a message to allow full screen reading */}
       {!selectedMsg && (
           <WebmailMobileNav 
             view={view}
@@ -210,12 +220,14 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
       {/* 5. Compose Modal */}
       <WebmailCompose 
         show={showCompose}
+        user={user}
         onClose={() => setShowCompose(false)}
         initialTo={composeTo}
         initialSubject={composeSubject}
         initialBody={composeBody}
+        initialDraftId={composeDraftId}
         onSuccess={() => {
-            if (view === 'sent') fetchMessages();
+            fetchMessages();
         }}
       />
 

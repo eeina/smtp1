@@ -6,6 +6,7 @@ export interface User {
   last_name?: string;
   company_name?: string;
   recovery_email?: string;
+  signature?: string;
   token?: string;
   role: 'client' | 'mailbox';
 }
@@ -25,6 +26,7 @@ export interface Mailbox {
   first_name?: string;
   last_name?: string;
   recovery_email?: string;
+  signature?: string;
   domain_id: { _id: string; name: string } | string;
 }
 
@@ -41,7 +43,7 @@ export interface EmailMessage {
   subject: string;
   text_body: string;
   html_body: string;
-  folder: 'inbox' | 'sent';
+  folder: 'inbox' | 'sent' | 'drafts';
   is_read: boolean;
   created_at: string;
   has_attachments: boolean;

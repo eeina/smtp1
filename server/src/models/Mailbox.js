@@ -34,6 +34,10 @@ const mailboxSchema = new mongoose.Schema({
     type: Number,
     default: 1073741824 // Default 1GB
   },
+  signature: {
+    type: String,
+    default: ''
+  },
   created_at: {
     type: Date,
     default: Date.now

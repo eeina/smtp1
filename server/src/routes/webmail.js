@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -33,16 +32,36 @@ router.post('/login', async (req, res) => {
     const mailbox = await Mailbox.findOne({ email: email.toLowerCase() });
     if (!mailbox) return res.status(400).json({ error: 'Invalid credentials' });
     
-    // FIXED: Added missing password argument
     const isMatch = await bcrypt.compare(password, mailbox.password_hash);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
     
     const token = jwt.sign({ mailbox_id: mailbox._id, email: mailbox.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
-    res.json({ token, email: mailbox.email, first_name: mailbox.first_name, last_name: mailbox.last_name });
+    res.json({ 
+        token, 
+        email: mailbox.email, 
+        first_name: mailbox.first_name, 
+        last_name: mailbox.last_name,
+        signature: mailbox.signature
+    });
   } catch (err) {
     logger.error('Webmail Login Error:', err);
     res.status(500).json({ error: 'Login failed' });
   }
+});
+
+router.put('/profile', authenticateWebmail, async (req, res) => {
+    try {
+        const { first_name, last_name, signature } = req.body;
+        const mailbox = await Mailbox.findById(req.user.mailbox_id);
+        if(!mailbox) return res.status(404).json({error: "Mailbox not found"});
+
+        if(first_name !== undefined) mailbox.first_name = first_name;
+        if(last_name !== undefined) mailbox.last_name = last_name;
+        if(signature !== undefined) mailbox.signature = signature;
+
+        await mailbox.save();
+        res.json({ message: 'Profile updated', first_name: mailbox.first_name, last_name: mailbox.last_name, signature: mailbox.signature });
+    } catch(err) { res.status(500).json({error: "Server Error"}); }
 });
 
 router.put('/password', authenticateWebmail, async (req, res) => {
@@ -67,7 +86,13 @@ router.get('/profile', authenticateWebmail, async (req, res) => {
     try {
         const mailbox = await Mailbox.findById(req.user.mailbox_id);
         if(!mailbox) return res.status(404).json({error: "Mailbox not found"});
-        res.json({ email: mailbox.email, first_name: mailbox.first_name, last_name: mailbox.last_name, recovery_email: mailbox.recovery_email });
+        res.json({ 
+            email: mailbox.email, 
+            first_name: mailbox.first_name, 
+            last_name: mailbox.last_name, 
+            recovery_email: mailbox.recovery_email,
+            signature: mailbox.signature
+        });
     } catch(err) { res.status(500).json({error: "Server Error"}); }
 });
 
@@ -92,7 +117,6 @@ router.get('/messages/:id/download/:filename', authenticateWebmail, async (req, 
     if (!message) return res.status(404).json({ error: 'Message not found' });
     const att = message.attachments.find(a => a.filename === req.params.filename);
     
-    // Better error for legacy files
     if (!att || !att.gridfs_id) {
         return res.status(410).json({ error: 'File data was not stored correctly during reception (Legacy Message).' });
     }
@@ -155,9 +179,37 @@ router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Failed to delete message' }); }
 });
 
+router.post('/messages/draft', authenticateWebmail, async (req, res) => {
+    try {
+        const { id, to, subject, htmlBody } = req.body;
+        let draft;
+        if (id) {
+            draft = await EmailMessage.findOneAndUpdate(
+                { _id: id, mailbox_id: req.user.mailbox_id, folder: 'drafts' },
+                { to, subject, html_body: htmlBody, created_at: Date.now() },
+                { new: true }
+            );
+        }
+
+        if (!draft) {
+            draft = await EmailMessage.create({
+                mailbox_id: req.user.mailbox_id,
+                direction: 'outbound',
+                from: req.user.email,
+                to: to || '',
+                subject: subject || '',
+                html_body: htmlBody || '',
+                folder: 'drafts',
+                is_read: true
+            });
+        }
+        res.json(draft);
+    } catch (err) { res.status(500).json({ error: 'Failed to save draft' }); }
+});
+
 router.post('/send', authenticateWebmail, upload.array('attachments'), async (req, res) => {
   try {
-    const { to, cc, bcc, subject, htmlBody } = req.body;
+    const { to, cc, bcc, subject, htmlBody, draftId } = req.body;
     const sender = await Mailbox.findById(req.user.mailbox_id);
     const fromHeader = sender && (sender.first_name || sender.last_name) 
         ? `"${sender.first_name || ''} ${sender.last_name || ''}".trim() <${req.user.email}>`
@@ -192,6 +244,10 @@ router.post('/send', authenticateWebmail, upload.array('attachments'), async (re
                 size: file.size
             });
         }
+    }
+
+    if (draftId) {
+        await EmailMessage.deleteOne({ _id: draftId, mailbox_id: req.user.mailbox_id });
     }
 
     await EmailMessage.create({
