@@ -1,8 +1,10 @@
+
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const multer = require('multer');
 const { Readable } = require('stream');
 const Mailbox = require('../models/Mailbox');
 const EmailMessage = require('../models/EmailMessage');
@@ -10,19 +12,21 @@ const { authenticateWebmail } = require('../middleware/auth');
 const logger = require('../config/logger');
 const emailService = require('../services/email.service');
 
-// Initialize GridFS Bucket
-let bucket;
-mongoose.connection.on('connected', () => {
-    bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-        bucketName: 'attachments'
-    });
+// Configure Multer for memory storage (we will pipe to GridFS)
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 200 * 1024 * 1024 } // 200MB per file limit
 });
 
-const base64ToBuffer = (base64String) => {
-    if (!base64String) return Buffer.alloc(0);
-    const parts = base64String.split('base64,');
-    const raw = parts.length > 1 ? parts[1] : parts[0];
-    return Buffer.from(raw, 'base64');
+// Initialize GridFS Bucket lazily
+let bucket;
+const getBucket = () => {
+    if (!bucket && mongoose.connection.readyState === 1) {
+        bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+            bucketName: 'attachments'
+        });
+    }
+    return bucket;
 };
 
 // Webmail Login
@@ -31,7 +35,7 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     const mailbox = await Mailbox.findOne({ email: email.toLowerCase() });
     if (!mailbox) return res.status(400).json({ error: 'Invalid credentials' });
-    const isMatch = await bcrypt.compare(password, mailbox.password_hash);
+    const isMatch = await bcrypt.compare(mailbox.password_hash);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
     const token = jwt.sign({ mailbox_id: mailbox._id, email: mailbox.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
     res.json({ token, email: mailbox.email, first_name: mailbox.first_name, last_name: mailbox.last_name });
@@ -93,10 +97,13 @@ router.get('/messages/:id/download/:filename', authenticateWebmail, async (req, 
     const att = message.attachments.find(a => a.filename === req.params.filename);
     if (!att || !att.gridfs_id) return res.status(404).json({ error: 'Attachment not found' });
 
+    const currentBucket = getBucket();
+    if (!currentBucket) return res.status(503).json({ error: 'Database bucket not ready' });
+
     res.setHeader('Content-Type', att.contentType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${att.filename}"`);
     
-    const downloadStream = bucket.openDownloadStream(att.gridfs_id);
+    const downloadStream = currentBucket.openDownloadStream(att.gridfs_id);
     downloadStream.on('error', (err) => {
         logger.error('GridFS Stream Error:', err);
         res.status(500).end();
@@ -125,9 +132,10 @@ router.post('/messages/batch-delete', authenticateWebmail, async (req, res) => {
     try {
         const { ids } = req.body;
         const messages = await EmailMessage.find({ _id: { $in: ids }, mailbox_id: req.user.mailbox_id });
+        const currentBucket = getBucket();
         for (const msg of messages) {
             for (const att of msg.attachments) {
-                if (att.gridfs_id) await bucket.delete(att.gridfs_id).catch(() => {});
+                if (att.gridfs_id && currentBucket) await currentBucket.delete(att.gridfs_id).catch(() => {});
             }
         }
         await EmailMessage.deleteMany({ _id: { $in: ids }, mailbox_id: req.user.mailbox_id });
@@ -139,9 +147,10 @@ router.post('/messages/batch-delete', authenticateWebmail, async (req, res) => {
 router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
   try {
     const msg = await EmailMessage.findOne({ _id: req.params.id, mailbox_id: req.user.mailbox_id });
+    const currentBucket = getBucket();
     if (msg) {
         for (const att of msg.attachments) {
-            if (att.gridfs_id) await bucket.delete(att.gridfs_id).catch(() => {});
+            if (att.gridfs_id && currentBucket) await currentBucket.delete(att.gridfs_id).catch(() => {});
         }
         await msg.deleteOne();
     }
@@ -149,10 +158,10 @@ router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Failed to delete message' }); }
 });
 
-// Send Email (Supports Large Files via GridFS)
-router.post('/send', authenticateWebmail, async (req, res) => {
+// Send Email (Supports Large Files via Multipart & GridFS)
+router.post('/send', authenticateWebmail, upload.array('attachments'), async (req, res) => {
   try {
-    const { to, cc, bcc, subject, htmlBody, attachments } = req.body;
+    const { to, cc, bcc, subject, htmlBody } = req.body;
     const sender = await Mailbox.findById(req.user.mailbox_id);
     const fromHeader = sender && (sender.first_name || sender.last_name) 
         ? `"${sender.first_name || ''} ${sender.last_name || ''}".trim() <${req.user.email}>`
@@ -161,18 +170,20 @@ router.post('/send', authenticateWebmail, async (req, res) => {
     const safeHtml = `<div style="font-family: sans-serif;">${htmlBody}</div>`;
     const plainText = htmlBody.replace(/<[^>]+>/g, ' ');
 
-    // Upload attachments to GridFS
+    const currentBucket = getBucket();
+    if (!currentBucket) return res.status(503).json({ error: 'Database bucket not ready' });
+
+    // Upload attachments to GridFS from Multer's memory buffers
     const processedAttachments = [];
-    if (attachments && attachments.length > 0) {
-        for (const att of attachments) {
-            const buffer = base64ToBuffer(att.content);
-            const uploadStream = bucket.openUploadStream(att.filename, {
-                contentType: att.contentType
+    if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+            const uploadStream = currentBucket.openUploadStream(file.originalname, {
+                contentType: file.mimetype
             });
             
             await new Promise((resolve, reject) => {
                 const stream = new Readable();
-                stream.push(buffer);
+                stream.push(file.buffer);
                 stream.push(null);
                 stream.pipe(uploadStream)
                     .on('finish', resolve)
@@ -180,10 +191,10 @@ router.post('/send', authenticateWebmail, async (req, res) => {
             });
 
             processedAttachments.push({
-                filename: att.filename,
-                contentType: att.contentType,
+                filename: file.originalname,
+                contentType: file.mimetype,
                 gridfs_id: uploadStream.id,
-                size: buffer.length
+                size: file.size
             });
         }
     }
@@ -203,8 +214,6 @@ router.post('/send', authenticateWebmail, async (req, res) => {
       is_read: true
     });
 
-    // Relay (Note: deliverExternal will still try to relay binary, 
-    // but internal users will get the GridFS reference via emailService.sendEmail)
     const allRecipients = new Set([
         ...to.split(/[;,]+/).map(r => r.trim()).filter(r => r),
         ...(cc ? cc.split(/[;,]+/).map(r => r.trim()).filter(r => r) : []),
@@ -212,7 +221,6 @@ router.post('/send', authenticateWebmail, async (req, res) => {
     ]);
 
     for (const recipientEmail of allRecipients) {
-        // We pass the gridfs_ids here. The service will need to handle binary for external.
         await emailService.sendEmail(fromHeader, recipientEmail, subject, plainText, safeHtml, {
             cc, bcc, attachments: processedAttachments
         });

@@ -12,7 +12,7 @@ interface Props {
   onSuccess: () => void;
 }
 
-const MAX_FILE_SIZE_MB = 150; // High limit now supported by GridFS backend
+const MAX_FILE_SIZE_MB = 150; 
 
 const formatSize = (bytes: number) => {
   if (bytes === 0) return '0 B';
@@ -117,15 +117,6 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
-  };
-
   const execCmd = (cmd: string, val?: string) => {
       document.execCommand(cmd, false, val);
       if(editorRef.current) editorRef.current.focus();
@@ -140,35 +131,33 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
     e.preventDefault();
     if(!editorRef.current) return;
 
-    const totalSize = attachments.reduce((sum, f) => sum + f.size, 0);
-    if (totalSize > 160 * 1024 * 1024) { 
-        addToast('Total payload is extremely large. Consider sending smaller batches.', 'info');
-    }
-    
     setSending(true);
     const htmlBody = editorRef.current.innerHTML;
 
     try {
-      const attachmentPayload = await Promise.all(attachments.map(async (file) => ({
-          filename: file.name,
-          contentType: file.type,
-          content: await fileToBase64(file)
-      })));
+      // Use FormData instead of JSON to handle large binary files without Base64 overhead
+      const formData = new FormData();
+      formData.append('to', to);
+      formData.append('cc', cc);
+      formData.append('bcc', bcc);
+      formData.append('subject', subject);
+      formData.append('htmlBody', htmlBody);
+      
+      attachments.forEach(file => {
+          formData.append('attachments', file);
+      });
 
-      await api.post('/api/webmail/send', {
-        to,
-        cc,
-        bcc,
-        subject,
-        htmlBody,
-        attachments: attachmentPayload
+      await api.post('/api/webmail/send', formData, {
+          headers: {
+              'Content-Type': 'multipart/form-data'
+          }
       });
       
       onSuccess();
       onClose();
-      addToast('Large message delivered successfully', 'success');
+      addToast('Message sent successfully', 'success');
     } catch (err: any) {
-      addToast(err.response?.data?.error || 'Failed to send large message', 'error');
+      addToast(err.response?.data?.error || 'Failed to send message', 'error');
     } finally {
       setSending(false);
     }
@@ -186,12 +175,6 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
             
             <form onSubmit={handleSend} className="flex-1 flex flex-col min-h-0">
                 <div className="px-4 sm:px-6 py-4 space-y-4 overflow-y-auto flex-1">
-                    {attachments.some(f => f.size > 20 * 1024 * 1024) && (
-                        <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex gap-3 items-center">
-                            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <p className="text-xs text-blue-700">Large files detected. Uploading will be handled via GridFS storage.</p>
-                        </div>
-                    )}
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
                             <span className="text-sm font-semibold text-gray-500 w-10">To</span>
@@ -241,7 +224,7 @@ const WebmailCompose = ({ show, onClose, initialTo, initialSubject, initialBody,
                         <button type="button" onClick={onClose} className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">Discard</button>
                         <button type="submit" disabled={sending} className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm">
                             {sending ? (
-                                <><Spinner /> Sending Large Files...</>
+                                <><Spinner /> Uploading...</>
                             ) : 'Send'}
                         </button>
                     </div>

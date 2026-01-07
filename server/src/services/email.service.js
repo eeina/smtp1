@@ -1,11 +1,23 @@
+
 const dns = require('dns').promises;
 const nodemailer = require('nodemailer');
-const mongoose = require('mongoose');
+const mongoose = require('nodemailer');
+const mongo = require('mongoose');
 const Mailbox = require('../models/Mailbox');
 const Domain = require('../models/Domain');
 const EmailMessage = require('../models/EmailMessage');
 const SystemConfig = require('../models/SystemConfig');
 const logger = require('../config/logger');
+
+let bucket;
+const getBucket = () => {
+    if (!bucket && mongo.connection.readyState === 1) {
+        bucket = new mongo.mongo.GridFSBucket(mongo.connection.db, {
+            bucketName: 'attachments'
+        });
+    }
+    return bucket;
+};
 
 const extractEmail = (fullAddress) => {
     if (!fullAddress) return '';
@@ -20,16 +32,16 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html,
     const mxRecords = await dns.resolveMx(recipientDomain);
     const bestMx = mxRecords.sort((a, b) => a.priority - b.priority)[0].exchange;
 
-    const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'attachments' });
+    const currentBucket = getBucket();
     
     // Prepare attachments by streaming from GridFS if necessary
     const attachments = [];
     if (options.attachments) {
         for (const att of options.attachments) {
-            if (att.gridfs_id) {
+            if (att.gridfs_id && currentBucket) {
                 attachments.push({
                     filename: att.filename,
-                    content: bucket.openDownloadStream(att.gridfs_id),
+                    content: currentBucket.openDownloadStream(att.gridfs_id),
                     contentType: att.contentType
                 });
             } else if (att.content) {
