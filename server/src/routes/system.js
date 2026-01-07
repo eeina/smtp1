@@ -1,11 +1,13 @@
+
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const SystemLog = require('../models/SystemLog');
 const SystemConfig = require('../models/SystemConfig');
+const EmailMessage = require('../models/EmailMessage');
 const { authenticateClient } = require('../middleware/auth');
 const diagnosticService = require('../services/diagnostic.service');
 
-// Get recent logs (Admin only)
 router.get('/logs', authenticateClient, async (req, res) => {
   try {
     const logs = await SystemLog.find()
@@ -17,7 +19,6 @@ router.get('/logs', authenticateClient, async (req, res) => {
   }
 });
 
-// Get System Config
 router.get('/config', authenticateClient, async (req, res) => {
     try {
         let config = await SystemConfig.findOne({ singleton: true });
@@ -30,7 +31,6 @@ router.get('/config', authenticateClient, async (req, res) => {
     }
 });
 
-// Update System Config
 router.put('/config', authenticateClient, async (req, res) => {
     try {
         const { smtp_hostname, system_email_address } = req.body;
@@ -50,7 +50,35 @@ router.put('/config', authenticateClient, async (req, res) => {
     }
 });
 
-// Run Server Diagnostics
+router.get('/audit-integrity', authenticateClient, async (req, res) => {
+    try {
+        const messagesWithAttachments = await EmailMessage.find({ has_attachments: true }).select('from subject created_at attachments');
+        const broken = [];
+        
+        const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: 'attachments' });
+
+        for (const msg of messagesWithAttachments) {
+            let msgBroken = false;
+            for (const att of msg.attachments) {
+                if (!att.gridfs_id) {
+                    msgBroken = true;
+                    break;
+                }
+                const files = await bucket.find({ _id: att.gridfs_id }).toArray();
+                if (files.length === 0) {
+                    msgBroken = true;
+                    break;
+                }
+            }
+            if (msgBroken) broken.push(msg);
+        }
+
+        res.json({ brokenCount: broken.length, broken });
+    } catch (e) {
+        res.status(500).json({ error: 'Audit failed' });
+    }
+});
+
 router.get('/diagnostics', authenticateClient, async (req, res) => {
     try {
         const [dnsCheck, portCheck, rdnsCheck, config] = await Promise.all([
@@ -72,15 +100,6 @@ router.get('/diagnostics', authenticateClient, async (req, res) => {
     } catch(e) {
         console.error(e);
         res.status(500).json({ error: 'Diagnostics failed to run' });
-    }
-});
-
-// Clear logs
-router.delete('/logs', authenticateClient, async (req, res) => {
-    try {
-        res.json({ message: 'Logs are auto-rotated (Capped Collection)' });
-    } catch(e) {
-        res.status(500).json({ error: 'Error' });
     }
 });
 

@@ -1,8 +1,7 @@
 
 const dns = require('dns').promises;
 const nodemailer = require('nodemailer');
-const mongoose = require('nodemailer');
-const mongo = require('mongoose');
+const mongoose = require('mongoose'); // Corrected import
 const Mailbox = require('../models/Mailbox');
 const Domain = require('../models/Domain');
 const EmailMessage = require('../models/EmailMessage');
@@ -11,8 +10,8 @@ const logger = require('../config/logger');
 
 let bucket;
 const getBucket = () => {
-    if (!bucket && mongo.connection.readyState === 1) {
-        bucket = new mongo.mongo.GridFSBucket(mongo.connection.db, {
+    if (!bucket && mongoose.connection.readyState === 1) {
+        bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
             bucketName: 'attachments'
         });
     }
@@ -34,7 +33,6 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html,
 
     const currentBucket = getBucket();
     
-    // Prepare attachments by streaming from GridFS if necessary
     const attachments = [];
     if (options.attachments) {
         for (const att of options.attachments) {
@@ -50,7 +48,13 @@ const deliverExternal = async (senderEmail, recipientEmail, subject, text, html,
         }
     }
 
-    const transporter = nodemailer.createTransport({ host: bestMx, port: 25, secure: false, tls: { rejectUnauthorized: false } });
+    const transporter = nodemailer.createTransport({ 
+        host: bestMx, 
+        port: 25, 
+        secure: false, 
+        tls: { rejectUnauthorized: false } 
+    });
+    
     await transporter.sendMail({
       from: senderEmail, to: recipientEmail, cc: options.cc, bcc: options.bcc,
       subject, text, html, attachments

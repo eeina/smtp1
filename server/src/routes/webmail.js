@@ -12,13 +12,11 @@ const { authenticateWebmail } = require('../middleware/auth');
 const logger = require('../config/logger');
 const emailService = require('../services/email.service');
 
-// Configure Multer for memory storage (we will pipe to GridFS)
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 200 * 1024 * 1024 } // 200MB per file limit
+    limits: { fileSize: 200 * 1024 * 1024 } 
 });
 
-// Initialize GridFS Bucket lazily
 let bucket;
 const getBucket = () => {
     if (!bucket && mongoose.connection.readyState === 1) {
@@ -29,14 +27,16 @@ const getBucket = () => {
     return bucket;
 };
 
-// Webmail Login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const mailbox = await Mailbox.findOne({ email: email.toLowerCase() });
     if (!mailbox) return res.status(400).json({ error: 'Invalid credentials' });
-    const isMatch = await bcrypt.compare(mailbox.password_hash);
+    
+    // FIXED: Added missing password argument
+    const isMatch = await bcrypt.compare(password, mailbox.password_hash);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
+    
     const token = jwt.sign({ mailbox_id: mailbox._id, email: mailbox.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
     res.json({ token, email: mailbox.email, first_name: mailbox.first_name, last_name: mailbox.last_name });
   } catch (err) {
@@ -45,7 +45,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Change Password
 router.put('/password', authenticateWebmail, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -64,7 +63,6 @@ router.put('/password', authenticateWebmail, async (req, res) => {
   }
 });
 
-// Get Webmail Profile
 router.get('/profile', authenticateWebmail, async (req, res) => {
     try {
         const mailbox = await Mailbox.findById(req.user.mailbox_id);
@@ -73,7 +71,6 @@ router.get('/profile', authenticateWebmail, async (req, res) => {
     } catch(err) { res.status(500).json({error: "Server Error"}); }
 });
 
-// Get Messages
 router.get('/messages', authenticateWebmail, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -89,13 +86,16 @@ router.get('/messages', authenticateWebmail, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Failed to fetch messages' }); }
 });
 
-// Download Attachment from GridFS
 router.get('/messages/:id/download/:filename', authenticateWebmail, async (req, res) => {
   try {
     const message = await EmailMessage.findOne({ _id: req.params.id, mailbox_id: req.user.mailbox_id });
     if (!message) return res.status(404).json({ error: 'Message not found' });
     const att = message.attachments.find(a => a.filename === req.params.filename);
-    if (!att || !att.gridfs_id) return res.status(404).json({ error: 'Attachment not found' });
+    
+    // Better error for legacy files
+    if (!att || !att.gridfs_id) {
+        return res.status(410).json({ error: 'File data was not stored correctly during reception (Legacy Message).' });
+    }
 
     const currentBucket = getBucket();
     if (!currentBucket) return res.status(503).json({ error: 'Database bucket not ready' });
@@ -115,7 +115,6 @@ router.get('/messages/:id/download/:filename', authenticateWebmail, async (req, 
   }
 });
 
-// Mark Message as Read
 router.patch('/messages/:id/read', authenticateWebmail, async (req, res) => {
     try {
         const msg = await EmailMessage.findOneAndUpdate(
@@ -127,7 +126,6 @@ router.patch('/messages/:id/read', authenticateWebmail, async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Failed to update message' }); }
 });
 
-// Batch Delete Messages
 router.post('/messages/batch-delete', authenticateWebmail, async (req, res) => {
     try {
         const { ids } = req.body;
@@ -143,7 +141,6 @@ router.post('/messages/batch-delete', authenticateWebmail, async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Failed to delete messages' }); }
 });
 
-// Delete Single Message
 router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
   try {
     const msg = await EmailMessage.findOne({ _id: req.params.id, mailbox_id: req.user.mailbox_id });
@@ -158,7 +155,6 @@ router.delete('/messages/:id', authenticateWebmail, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Failed to delete message' }); }
 });
 
-// Send Email (Supports Large Files via Multipart & GridFS)
 router.post('/send', authenticateWebmail, upload.array('attachments'), async (req, res) => {
   try {
     const { to, cc, bcc, subject, htmlBody } = req.body;
@@ -173,7 +169,6 @@ router.post('/send', authenticateWebmail, upload.array('attachments'), async (re
     const currentBucket = getBucket();
     if (!currentBucket) return res.status(503).json({ error: 'Database bucket not ready' });
 
-    // Upload attachments to GridFS from Multer's memory buffers
     const processedAttachments = [];
     if (req.files && req.files.length > 0) {
         for (const file of req.files) {
@@ -199,7 +194,6 @@ router.post('/send', authenticateWebmail, upload.array('attachments'), async (re
         }
     }
 
-    // Save to Sent
     await EmailMessage.create({
       mailbox_id: req.user.mailbox_id,
       direction: 'outbound',
