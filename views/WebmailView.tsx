@@ -11,7 +11,13 @@ import WebmailMobileNav from './webmail/WebmailMobileNav';
 import WebmailCompose from './webmail/WebmailCompose';
 import WebmailSettings from './webmail/WebmailSettings';
 
-const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
+interface WebmailViewProps {
+    user: User;
+    onLogout: () => void;
+    onAdminPanel?: () => void;
+}
+
+const WebmailView = ({ user, onLogout, onAdminPanel }: WebmailViewProps) => {
   const { addToast } = useToast();
   
   // Data State
@@ -51,6 +57,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
       setTotalPages(res.data.pagination.pages);
       setTotalMessages(res.data.pagination.total);
     } catch (err) {
+      // If admin has no mailbox created yet, this might 403 or 500.
       console.error(err);
     } finally {
       if (!isPolling) setLoadingMessages(false);
@@ -177,6 +184,7 @@ const WebmailView = ({ user, onLogout }: { user: User, onLogout: () => void }) =
         onViewChange={(v) => { setView(v); setSelectedMsg(null); }}
         onSettings={() => setShowSettings(true)}
         onLogout={onLogout}
+        onAdminPanel={onAdminPanel}
       />
 
       {/* 2. Message List */}

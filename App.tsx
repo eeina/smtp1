@@ -24,7 +24,8 @@ export default function App() {
           if (role === 'client') {
              const res = await api.get('/api/account/profile');
              setUser({ ...res.data, role: 'client', token });
-             setView('client-dashboard');
+             // Admin defaults to webmail now to look "like user", can switch to dashboard
+             setView('webmail-dashboard'); 
           } else if (role === 'mailbox') {
              const res = await api.get('/api/webmail/profile');
              setUser({ ...res.data, role: 'mailbox', token });
@@ -49,7 +50,8 @@ export default function App() {
   const handleLoginSuccess = (userData: User) => {
     setUser(userData);
     localStorage.setItem('smtp_role', userData.role);
-    setView(userData.role === 'client' ? 'client-dashboard' : 'webmail-dashboard');
+    // Admins now land on webmail too
+    setView('webmail-dashboard');
   };
 
   const handleLogout = () => {
@@ -85,11 +87,20 @@ export default function App() {
       )}
       
       {view === 'client-dashboard' && user && (
-        <ClientDashboard user={user} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
+        <ClientDashboard 
+            user={user} 
+            onLogout={handleLogout} 
+            onUserUpdate={handleUserUpdate}
+            onOpenWebmail={() => setView('webmail-dashboard')}
+        />
       )}
       
       {view === 'webmail-dashboard' && user && (
-        <WebmailView user={user} onLogout={handleLogout} />
+        <WebmailView 
+            user={user} 
+            onLogout={handleLogout}
+            onAdminPanel={user.role === 'client' ? () => setView('client-dashboard') : undefined}
+        />
       )}
     </ToastProvider>
   );

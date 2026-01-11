@@ -16,14 +16,30 @@ router.post('/', async (req, res) => {
     if (client) {
       const isMatch = await bcrypt.compare(password, client.password_hash);
       if (isMatch) {
-        const token = jwt.sign({ client_id: client._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
+        // Find associated mailbox for admin to enable webmail features
+        const adminMailbox = await Mailbox.findOne({ email: client.email });
+        
+        const tokenPayload = { 
+            client_id: client._id,
+            email: client.email
+        };
+
+        // If admin has a mailbox (created via seed or manually), add ID to token
+        // This allows authenticateWebmail middleware to pass
+        if (adminMailbox) {
+            tokenPayload.mailbox_id = adminMailbox._id;
+        }
+
+        const token = jwt.sign(tokenPayload, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
+        
         return res.json({
           token,
           role: 'client',
           email: client.email,
           first_name: client.first_name,
           last_name: client.last_name,
-          company_name: client.company_name
+          company_name: client.company_name,
+          has_mailbox: !!adminMailbox
         });
       }
     }

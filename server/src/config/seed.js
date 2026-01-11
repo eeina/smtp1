@@ -40,7 +40,7 @@ const seedDatabase = async () => {
       dkim_public_key: keys.publicKey
     });
 
-    // 3. Create Mailbox
+    // 3. Create User Mailbox
     const mailboxPassword = await bcrypt.hash('password123', salt);
     const mailbox = await Mailbox.create({
       domain_id: domain._id,
@@ -49,7 +49,17 @@ const seedDatabase = async () => {
       quota_bytes: 1073741824
     });
 
-    // 4. Create Email Messages
+    // 4. Create Admin Mailbox (So admin can use webmail)
+    const adminMailbox = await Mailbox.create({
+      domain_id: domain._id,
+      email: 'admin@example.com',
+      password_hash: clientPassword, // Same as client password
+      quota_bytes: 5368709120, // 5GB for admin
+      first_name: 'System',
+      last_name: 'Admin'
+    });
+
+    // 5. Create Email Messages
     await EmailMessage.create([
       {
         mailbox_id: mailbox._id,
@@ -73,6 +83,18 @@ const seedDatabase = async () => {
         html_body: '<p>This email appears in your sent items.</p>',
         folder: 'sent',
         is_read: true,
+        created_at: new Date()
+      },
+      {
+        mailbox_id: adminMailbox._id,
+        direction: 'inbound',
+        from: 'setup@eeina.com',
+        to: adminMailbox.email,
+        subject: 'Admin Dashboard Ready',
+        text_body: 'Your administrative and email privileges are active.',
+        html_body: '<h3>System Ready</h3><p>You can now manage domains and send emails from the same account.</p>',
+        folder: 'inbox',
+        is_read: false,
         created_at: new Date()
       }
     ]);

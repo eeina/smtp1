@@ -9,9 +9,10 @@ interface Props {
   onViewChange: (view: 'inbox' | 'sent' | 'drafts') => void;
   onSettings: () => void;
   onLogout: () => void;
+  onAdminPanel?: () => void;
 }
 
-const WebmailSidebar = ({ user, view, messages, onCompose, onViewChange, onSettings, onLogout }: Props) => {
+const WebmailSidebar = ({ user, view, messages, onCompose, onViewChange, onSettings, onLogout, onAdminPanel }: Props) => {
   const unreadCount = messages.filter(m => m.folder === 'inbox' && !m.is_read).length;
 
   return (
@@ -61,8 +62,20 @@ const WebmailSidebar = ({ user, view, messages, onCompose, onViewChange, onSetti
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-            <button onClick={onSettings} className="flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all border border-slate-700/50">Settings</button>
-            <button onClick={onLogout} className="flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-red-900/10 hover:bg-red-900/30 text-red-500 rounded-xl transition-all border border-red-900/20">Exit</button>
+            {onAdminPanel ? (
+                <>
+                    <button onClick={onAdminPanel} className="col-span-2 flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all border border-blue-400/50 shadow-lg shadow-blue-900/50 mb-1">
+                        Admin Panel
+                    </button>
+                    <button onClick={onSettings} className="flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all border border-slate-700/50">Settings</button>
+                    <button onClick={onLogout} className="flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-red-900/10 hover:bg-red-900/30 text-red-500 rounded-xl transition-all border border-red-900/20">Exit</button>
+                </>
+            ) : (
+                <>
+                    <button onClick={onSettings} className="flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all border border-slate-700/50">Settings</button>
+                    <button onClick={onLogout} className="flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-red-900/10 hover:bg-red-900/30 text-red-500 rounded-xl transition-all border border-red-900/20">Exit</button>
+                </>
+            )}
         </div>
       </div>
     </div>

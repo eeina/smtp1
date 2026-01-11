@@ -35,9 +35,10 @@ interface Props {
     user: User;
     onLogout: () => void;
     onUserUpdate: (u: Partial<User>) => void;
+    onOpenWebmail: () => void;
 }
 
-const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
+const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail }: Props) => {
   const { addToast } = useToast();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
@@ -214,6 +215,7 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate }: Props) => {
         onLogout={onLogout} 
         onShowLogs={() => setShowLogs(true)} 
         onOpenSettings={() => setShowAccountSettings(true)}
+        onOpenInbox={onOpenWebmail}
       />
 
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">

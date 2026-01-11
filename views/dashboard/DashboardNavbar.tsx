@@ -6,9 +6,10 @@ interface Props {
   onLogout: () => void;
   onShowLogs: () => void;
   onOpenSettings: () => void;
+  onOpenInbox: () => void;
 }
 
-const DashboardNavbar = ({ user, onLogout, onShowLogs, onOpenSettings }: Props) => {
+const DashboardNavbar = ({ user, onLogout, onShowLogs, onOpenSettings, onOpenInbox }: Props) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
@@ -30,6 +31,16 @@ const DashboardNavbar = ({ user, onLogout, onShowLogs, onOpenSettings }: Props) 
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4">
+            <button 
+                onClick={onOpenInbox}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-all border border-emerald-200"
+            >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                <span className="hidden sm:inline">Inbox</span>
+            </button>
+
+            <div className="h-6 w-px bg-gray-200 hidden sm:block"></div>
+
             <button 
               onClick={onShowLogs}
               className="group flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all"
