@@ -52,9 +52,9 @@ const WebmailSidebar = ({ user, view, messages, onCompose, onViewChange, onSetti
       
       <div className="mt-auto p-6 border-t border-white/5 bg-slate-900/50">
         <div className="flex items-center gap-4 mb-6 px-2">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-sm font-black ring-4 ring-slate-800 shadow-xl">{user.email.charAt(0).toUpperCase()}</div>
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-sm font-black ring-4 ring-slate-800 shadow-xl flex-shrink-0">{user.email.charAt(0).toUpperCase()}</div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-black text-white truncate leading-none mb-1">{user.email.split('@')[0]}</p>
+            <p className="text-sm font-black text-white break-all leading-tight mb-1" title={user.email}>{user.email}</p>
             <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full ${onAdminPanel ? 'bg-blue-500' : 'bg-emerald-500'} animate-pulse`}></span>
               <p className={`text-[10px] font-black uppercase tracking-widest ${onAdminPanel ? 'text-blue-400' : 'text-slate-500'}`}>

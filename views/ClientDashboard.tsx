@@ -82,8 +82,12 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
       setDomains(dRes.data);
       const mRes = await api.get('/api/mailboxes');
       setMailboxes(mRes.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      // Auto-logout on 403 Forbidden (Session Invalid/Expired)
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          onLogout();
+      }
     }
   };
 
