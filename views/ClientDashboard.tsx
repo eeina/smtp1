@@ -36,9 +36,10 @@ interface Props {
     onLogout: () => void;
     onUserUpdate: (u: Partial<User>) => void;
     onOpenWebmail: () => void;
+    onImpersonate: (token: string, user: any) => void;
 }
 
-const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail }: Props) => {
+const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpersonate }: Props) => {
   const { addToast } = useToast();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
@@ -151,6 +152,16 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail }: Props)
     }
   };
 
+  const handleAccessMailbox = async (id: string) => {
+      try {
+          const res = await api.post(`/api/mailboxes/${id}/impersonate`);
+          addToast(`Accessing inbox: ${res.data.user.email}`, 'success');
+          onImpersonate(res.data.token, res.data.user);
+      } catch (err: any) {
+          addToast(err.response?.data?.error || 'Failed to access mailbox', 'error');
+      }
+  };
+
   const handleVerify = async (domainId: string) => {
     setLoading(true);
     try {
@@ -254,6 +265,7 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail }: Props)
                 mailboxes={mailboxes} 
                 onDeleteMailbox={handleDeleteMailbox}
                 onEditMailbox={(mb) => setEditingMailbox(mb)}
+                onAccessMailbox={handleAccessMailbox}
             />
           </div>
 

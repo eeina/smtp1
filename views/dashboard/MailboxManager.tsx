@@ -5,9 +5,10 @@ interface Props {
   mailboxes: Mailbox[];
   onDeleteMailbox: (id: string) => void;
   onEditMailbox: (mailbox: Mailbox) => void;
+  onAccessMailbox: (id: string) => void;
 }
 
-const MailboxManager = ({ mailboxes, onDeleteMailbox, onEditMailbox }: Props) => {
+const MailboxManager = ({ mailboxes, onDeleteMailbox, onEditMailbox, onAccessMailbox }: Props) => {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden h-fit">
       <div className="p-6 border-b border-gray-100 flex justify-between items-center">
@@ -46,6 +47,13 @@ const MailboxManager = ({ mailboxes, onDeleteMailbox, onEditMailbox }: Props) =>
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
+                     <button 
+                        onClick={() => onAccessMailbox(mb._id)}
+                        className="text-gray-300 hover:text-emerald-600 bg-white hover:bg-emerald-50 border border-transparent hover:border-emerald-200 p-2 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                        title="Access Inbox"
+                     >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                     </button>
                      <button 
                         onClick={() => onEditMailbox(mb)}
                         className="text-gray-300 hover:text-blue-600 p-2 rounded-md transition-colors opacity-0 group-hover:opacity-100"

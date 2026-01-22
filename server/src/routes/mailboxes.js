@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const Mailbox = require('../models/Mailbox');
 const Domain = require('../models/Domain');
 const EmailMessage = require('../models/EmailMessage');
@@ -21,6 +22,35 @@ router.get('/', authenticateClient, async (req, res) => {
     res.json(mailboxes);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch mailboxes' });
+  }
+});
+
+// Impersonate Mailbox (Get Token)
+router.post('/:id/impersonate', authenticateClient, async (req, res) => {
+  try {
+    const mailbox = await Mailbox.findById(req.params.id);
+    if (!mailbox) return res.status(404).json({ error: 'Mailbox not found' });
+
+    // Verify ownership via Domain
+    const domain = await Domain.findOne({ _id: mailbox.domain_id, client_id: req.user.client_id });
+    if (!domain) return res.status(403).json({ error: 'Access denied' });
+
+    const token = jwt.sign({ mailbox_id: mailbox._id, email: mailbox.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
+    
+    logger.info(`Admin impersonating mailbox: ${mailbox.email}`);
+
+    res.json({ 
+        token,
+        user: {
+            email: mailbox.email, 
+            first_name: mailbox.first_name, 
+            last_name: mailbox.last_name,
+            role: 'mailbox'
+        }
+    });
+  } catch (err) {
+    logger.error('Impersonation Error:', err);
+    res.status(500).json({ error: 'Failed to generate access token' });
   }
 });
 

@@ -36,6 +36,7 @@ export default function App() {
           console.error("Session fetch failed", err);
           localStorage.removeItem('smtp_token');
           localStorage.removeItem('smtp_role');
+          localStorage.removeItem('smtp_admin_token'); // Clear impersonation token too
           setView('landing');
         }
       } else {
@@ -57,6 +58,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('smtp_token');
     localStorage.removeItem('smtp_role');
+    localStorage.removeItem('smtp_admin_token');
     setUser(null);
     setView('landing');
   };
@@ -66,6 +68,42 @@ export default function App() {
         setUser({ ...user, ...updates });
     }
   };
+
+  const handleImpersonate = (token: string, impersonatedUser: any) => {
+    // 1. Save current admin token
+    const currentToken = localStorage.getItem('smtp_token');
+    if (currentToken) {
+        localStorage.setItem('smtp_admin_token', currentToken);
+    }
+    
+    // 2. Set new user session
+    localStorage.setItem('smtp_token', token);
+    localStorage.setItem('smtp_role', 'mailbox');
+    setUser(impersonatedUser);
+    setView('webmail-dashboard');
+  };
+
+  const handleRestoreAdminSession = async () => {
+    const adminToken = localStorage.getItem('smtp_admin_token');
+    if (adminToken) {
+        // Restore Admin Session
+        localStorage.setItem('smtp_token', adminToken);
+        localStorage.setItem('smtp_role', 'client');
+        localStorage.removeItem('smtp_admin_token');
+        
+        // Fetch Admin Profile
+        try {
+            const res = await api.get('/api/account/profile');
+            setUser({ ...res.data, role: 'client', token: adminToken });
+            setView('client-dashboard');
+        } catch (err) {
+            // If admin token expired, just logout
+            handleLogout();
+        }
+    }
+  };
+
+  const isImpersonating = !!localStorage.getItem('smtp_admin_token');
 
   if (loading) {
     return (
@@ -92,6 +130,7 @@ export default function App() {
             onLogout={handleLogout} 
             onUserUpdate={handleUserUpdate}
             onOpenWebmail={() => setView('webmail-dashboard')}
+            onImpersonate={handleImpersonate}
         />
       )}
       
@@ -99,7 +138,7 @@ export default function App() {
         <WebmailView 
             user={user} 
             onLogout={handleLogout}
-            onAdminPanel={user.role === 'client' ? () => setView('client-dashboard') : undefined}
+            onAdminPanel={user.role === 'client' ? () => setView('client-dashboard') : isImpersonating ? handleRestoreAdminSession : undefined}
         />
       )}
     </ToastProvider>
