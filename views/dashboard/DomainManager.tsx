@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Domain } from '../../types';
 
 interface Props {
@@ -27,172 +27,127 @@ const DomainManager = (props: Props) => {
     navigator.clipboard.writeText(text);
     const btn = e.currentTarget as HTMLButtonElement;
     const original = btn.innerText;
-    btn.innerText = 'Copied!';
+    btn.innerText = 'COPIED';
     setTimeout(() => btn.innerText = original, 1000);
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h3 className="text-lg font-bold text-gray-900">Domains</h3>
-            <p className="text-sm text-gray-500 mt-1">Manage verified sending domains & mailboxes</p>
-        </div>
-        <form onSubmit={props.onAddDomain} className="flex gap-2 w-full md:w-auto">
-          <input 
-            type="text" 
-            placeholder="example.com" 
-            className="w-full md:w-64 border-gray-200 bg-gray-50 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-            value={props.newDomain}
-            onChange={e => props.setNewDomain(e.target.value)}
-          />
-          <button type="submit" className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-black transition-colors shadow-lg shadow-gray-200">
-            Add Domain
-          </button>
-        </form>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+            Domains
+          </h3>
+          <form onSubmit={props.onAddDomain} className="flex gap-2">
+             <input 
+                type="text" 
+                placeholder="example.com" 
+                className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none placeholder:text-slate-600 w-48 transition-all"
+                value={props.newDomain}
+                onChange={e => props.setNewDomain(e.target.value)}
+              />
+              <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg transition-colors">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+              </button>
+          </form>
       </div>
 
-      <div className="p-6">
-        {props.domains.length === 0 && (
-            <div className="text-center py-12 px-4 rounded-xl border-2 border-dashed border-gray-100 bg-gray-50/50">
-                <div className="mx-auto h-12 w-12 text-gray-300 mb-3">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
-                </div>
-                <p className="text-gray-500 text-sm font-medium">No domains connected</p>
-                <p className="text-gray-400 text-xs mt-1">Add a domain above to start configuring your mail server.</p>
-            </div>
-        )}
-        
-        <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4">
+          {props.domains.length === 0 && (
+              <div className="bg-slate-900 border border-dashed border-slate-800 rounded-2xl p-8 text-center">
+                  <p className="text-slate-500 mb-2">No domains configured.</p>
+                  <p className="text-xs text-slate-600">Add a domain to start routing email.</p>
+              </div>
+          )}
+          
           {props.domains.map(domain => (
-            <div key={domain._id} className="group border border-gray-100 rounded-xl p-5 hover:border-gray-300 hover:shadow-md transition-all bg-white relative">
-              <div className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); props.onDeleteDomain(domain._id); }}
-                    className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                    title="Delete Domain"
-                  >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
-              </div>
+              <div key={domain._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all group relative overflow-hidden">
+                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                          <div className="flex items-center gap-3">
+                              <h4 className="text-lg font-bold text-white">{domain.name}</h4>
+                              {domain.is_verified ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Verified</span>
+                              ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">Pending</span>
+                              )}
+                          </div>
+                          
+                          {domain.is_verified && (
+                             <div className="mt-2 flex items-center gap-4 text-xs text-slate-500 font-mono">
+                                 <span className="flex items-center gap-1.5">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${domain.mx_status === 'active' ? 'bg-blue-500' : 'bg-slate-600'}`}></span>
+                                    MX: {domain.mx_status === 'active' ? 'Active' : 'Checking...'}
+                                 </span>
+                                 <span className="flex items-center gap-1.5">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${domain.dkim_public_key ? 'bg-purple-500' : 'bg-slate-600'}`}></span>
+                                    DKIM: {domain.dkim_public_key ? 'Generated' : 'Missing'}
+                                 </span>
+                             </div>
+                          )}
+                      </div>
 
-              <div className="flex flex-col md:flex-row justify-between items-start gap-4 pr-8">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${domain.is_verified ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                      <h4 className="text-lg font-bold text-gray-900 truncate">{domain.name}</h4>
+                      <div className="flex items-center gap-2">
+                          {!domain.is_verified && (
+                              <button 
+                                onClick={() => props.onVerify(domain._id)}
+                                className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-colors"
+                              >
+                                  {props.loading ? 'Checking...' : 'Verify DNS'}
+                              </button>
+                          )}
+                          <button 
+                             onClick={() => props.onOpenDns(domain)}
+                             className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-colors border border-slate-700"
+                          >
+                              DNS Records
+                          </button>
+                          {domain.is_verified && (
+                              <button 
+                                onClick={() => props.setSelectedDomainId(domain._id === props.selectedDomainId ? null : domain._id)}
+                                className={`text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-colors border ${domain._id === props.selectedDomainId ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'}`}
+                              >
+                                  + User
+                              </button>
+                          )}
+                          <button 
+                              onClick={() => props.onDeleteDomain(domain._id)}
+                              className="text-slate-600 hover:text-red-500 p-1.5 transition-colors"
+                              title="Delete Domain"
+                          >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                      </div>
                   </div>
-                  
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${domain.is_verified ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20' : 'bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20'}`}>
-                      {domain.is_verified ? 'Verified' : 'Pending Verification'}
-                    </span>
-                    {domain.mx_status === 'active' && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                        MX Active
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+
                   {!domain.is_verified && (
-                    <button 
-                      onClick={() => props.onVerify(domain._id)}
-                      disabled={props.loading}
-                      className="flex-1 md:flex-none text-sm bg-yellow-400 hover:bg-yellow-500 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-sm"
-                    >
-                      {props.loading ? '...' : 'Verify'}
-                    </button>
-                  )}
-                  <button 
-                    onClick={() => props.onOpenDns(domain)}
-                    className="flex-1 md:flex-none text-sm bg-white border border-gray-200 text-gray-700 font-medium px-4 py-2 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm"
-                  >
-                    DNS
-                  </button>
-                  {domain.is_verified && (
-                    <button 
-                      onClick={() => props.setSelectedDomainId(domain._id === props.selectedDomainId ? null : domain._id)}
-                      className={`flex-1 md:flex-none text-sm px-4 py-2 rounded-lg font-medium transition-all shadow-sm border ${domain._id === props.selectedDomainId ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-                    >
-                      Users
-                    </button>
-                  )}
-                </div>
-              </div>
-              
-              {!domain.is_verified && (
-                <div className="mt-5 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Verification Required</p>
-                   <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-400">TXT Host: <span className="font-mono text-gray-600">@</span></span>
-                      <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded px-3 py-1.5">
-                          <code className="text-xs text-gray-600 flex-1 truncate font-mono">{domain.verification_token}</code>
-                          <button onClick={(e) => handleCopy(domain.verification_token, e)} className="text-xs font-bold text-blue-600 hover:text-blue-700">Copy</button>
+                      <div className="mt-4 bg-slate-950/50 p-3 rounded-lg border border-slate-800 flex items-center gap-3">
+                          <code className="text-xs text-amber-500 font-mono">TXT @</code>
+                          <code className="flex-1 text-xs text-slate-400 font-mono truncate bg-slate-900 px-2 py-1 rounded">{domain.verification_token}</code>
+                          <button onClick={(e) => handleCopy(domain.verification_token, e)} className="text-[10px] font-bold uppercase text-slate-500 hover:text-white">Copy</button>
                       </div>
-                   </div>
-                </div>
-              )}
+                  )}
 
-              {/* Add Mailbox Form */}
-              {props.selectedDomainId === domain._id && (
-                <div className="mt-5 pt-5 border-t border-dashed border-gray-200 animate-in slide-in-from-top-2 duration-200">
-                  <h5 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <div className="p-1 bg-blue-100 rounded text-blue-600">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  {props.selectedDomainId === domain._id && (
+                      <div className="mt-4 pt-4 border-t border-slate-800 animate-in slide-in-from-top-2">
+                          <form onSubmit={props.onCreateMailbox} className="flex flex-wrap gap-2 items-end">
+                              <div className="flex-1 min-w-[150px]">
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase">Username</label>
+                                  <div className="flex items-center">
+                                     <input type="text" className="bg-slate-800 border border-slate-700 rounded-l-lg px-3 py-1.5 text-sm text-white focus:ring-1 focus:ring-emerald-500 outline-none w-full" placeholder="user" value={props.newMailboxEmail.split('@')[0]} onChange={e => props.setNewMailboxEmail(e.target.value + '@' + domain.name)} required />
+                                     <span className="bg-slate-700 border border-slate-700 border-l-0 rounded-r-lg px-2 py-1.5 text-xs text-slate-400">@{domain.name}</span>
+                                  </div>
+                              </div>
+                              <div className="w-32">
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase">Password</label>
+                                  <input type="password" className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-1 focus:ring-emerald-500 outline-none w-full" placeholder="Secret" value={props.newMailboxPassword} onChange={e => props.setNewMailboxPassword(e.target.value)} required />
+                              </div>
+                              <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold h-[34px]">Create</button>
+                          </form>
                       </div>
-                      Create Mailbox for {domain.name}
-                  </h5>
-                  <form onSubmit={props.onCreateMailbox} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="relative">
-                        <input 
-                          type="text" 
-                          placeholder="username"
-                          className="w-full border-gray-200 bg-gray-50 rounded-lg pl-3 pr-16 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          value={props.newMailboxEmail.split('@')[0]}
-                          onChange={e => props.setNewMailboxEmail(e.target.value + '@' + domain.name)}
-                          required
-                        />
-                        <span className="absolute right-3 top-2 text-sm text-gray-400 pointer-events-none">@{domain.name}</span>
-                    </div>
-                    <div>
-                        <input 
-                          type="password" 
-                          placeholder="Password"
-                          className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                          value={props.newMailboxPassword}
-                          onChange={e => props.setNewMailboxPassword(e.target.value)}
-                          required
-                        />
-                    </div>
-                    <div>
-                         <input 
-                          type="text" 
-                          placeholder="First Name (Optional)"
-                          name="first_name"
-                          className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                        />
-                    </div>
-                    <div>
-                         <input 
-                          type="text" 
-                          placeholder="Last Name (Optional)"
-                          name="last_name"
-                          className="w-full border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                        />
-                    </div>
-                    <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
-                        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm">
-                           Create Mailbox
-                        </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </div>
+                  )}
+              </div>
           ))}
-        </div>
       </div>
     </div>
   );

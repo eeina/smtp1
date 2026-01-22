@@ -4,7 +4,7 @@ import { User, Domain, Mailbox, DnsStatus } from '../types';
 import { useToast } from '../components/ToastContext';
 
 // Components
-import DashboardNavbar from './dashboard/DashboardNavbar';
+import DashboardSidebar from './dashboard/DashboardSidebar';
 import ServerInfoPanel from './dashboard/ServerInfoPanel';
 import DomainManager from './dashboard/DomainManager';
 import MailboxManager from './dashboard/MailboxManager';
@@ -218,10 +218,10 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 relative pb-20 font-sans">
+    <div className="flex min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30 selection:text-emerald-300">
       
-      {/* Navigation */}
-      <DashboardNavbar 
+      {/* Sidebar Navigation */}
+      <DashboardSidebar 
         user={user} 
         onLogout={onLogout} 
         onShowLogs={() => setShowLogs(true)} 
@@ -229,46 +229,51 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
         onOpenInbox={onOpenWebmail}
       />
 
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        
-        {/* Server Health Panel */}
-        <ServerInfoPanel 
-          onRunDiagnostics={runDiagnostics} 
-        />
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            {/* Top Bar / Breadcrumb area could go here */}
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                {/* Server Status Widget */}
+                <div className="lg:col-span-3">
+                    <ServerInfoPanel onRunDiagnostics={runDiagnostics} />
+                </div>
+            </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Domains Section */}
-          <div className="lg:col-span-2 space-y-6">
-            <DomainManager 
-                domains={domains}
-                newDomain={newDomain}
-                setNewDomain={setNewDomain}
-                onAddDomain={handleAddDomain}
-                onDeleteDomain={handleDeleteDomain}
-                onVerify={handleVerify}
-                onOpenDns={openDnsModal}
-                loading={loading}
-                selectedDomainId={selectedDomainId}
-                setSelectedDomainId={setSelectedDomainId}
-                newMailboxEmail={newMailboxEmail}
-                setNewMailboxEmail={setNewMailboxEmail}
-                newMailboxPassword={newMailboxPassword}
-                setNewMailboxPassword={setNewMailboxPassword}
-                onCreateMailbox={handleCreateMailbox}
-            />
-          </div>
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            
+                {/* Domains Column */}
+                <div className="xl:col-span-2 space-y-6">
+                    <DomainManager 
+                        domains={domains}
+                        newDomain={newDomain}
+                        setNewDomain={setNewDomain}
+                        onAddDomain={handleAddDomain}
+                        onDeleteDomain={handleDeleteDomain}
+                        onVerify={handleVerify}
+                        onOpenDns={openDnsModal}
+                        loading={loading}
+                        selectedDomainId={selectedDomainId}
+                        setSelectedDomainId={setSelectedDomainId}
+                        newMailboxEmail={newMailboxEmail}
+                        setNewMailboxEmail={setNewMailboxEmail}
+                        newMailboxPassword={newMailboxPassword}
+                        setNewMailboxPassword={setNewMailboxPassword}
+                        onCreateMailbox={handleCreateMailbox}
+                    />
+                </div>
 
-          {/* Mailboxes Section */}
-          <div className="space-y-6">
-            <MailboxManager 
-                mailboxes={mailboxes} 
-                onDeleteMailbox={handleDeleteMailbox}
-                onEditMailbox={(mb) => setEditingMailbox(mb)}
-                onAccessMailbox={handleAccessMailbox}
-            />
-          </div>
-
+                {/* Mailboxes Column */}
+                <div className="space-y-6">
+                    <MailboxManager 
+                        mailboxes={mailboxes} 
+                        onDeleteMailbox={handleDeleteMailbox}
+                        onEditMailbox={(mb) => setEditingMailbox(mb)}
+                        onAccessMailbox={handleAccessMailbox}
+                    />
+                </div>
+            </div>
         </div>
       </main>
 

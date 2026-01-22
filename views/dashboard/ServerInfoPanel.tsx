@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface Props {
@@ -7,61 +6,42 @@ interface Props {
 
 const ServerInfoPanel = ({ onRunDiagnostics }: Props) => {
   return (
-    <div className="bg-slate-900 rounded-[3rem] shadow-2xl p-10 mb-12 text-white relative overflow-hidden border border-white/5 ring-1 ring-white/10">
-      {/* Abstract Background Accents */}
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none animate-pulse"></div>
-      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-
-      <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-10 mb-12">
-        <div>
-           <h3 className="text-3xl font-black tracking-tighter text-white mb-3">Core Infrastructure</h3>
-           <p className="text-slate-400 text-sm font-medium max-w-lg leading-relaxed">System endpoints are operational. Use these encrypted protocols to connect your laboratory nodes to the main Eeina network.</p>
-        </div>
-        <button 
-          onClick={onRunDiagnostics} 
-          className="group flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-[0.2em] px-8 py-4 rounded-3xl transition-all transform hover:-translate-y-1 active:scale-95 shadow-2xl shadow-emerald-900/40"
-        >
-          <svg className="w-5 h-5 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          Run Diagnostic Sweep
-        </button>
-      </div>
+    <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden group">
       
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
-        <div className="bg-white/5 backdrop-blur-xl rounded-[2rem] p-6 border border-white/10 hover:border-white/20 transition-all group">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-2.5 bg-blue-500/20 rounded-2xl text-blue-400 group-hover:scale-110 transition-transform">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
-            </div>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Protocol Node</p>
-          </div>
-          <p className="font-mono text-xl text-white font-bold break-all leading-none">{window.location.hostname}</p>
-        </div>
+      {/* Background glow effect */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors duration-700"></div>
 
-        <div className="bg-white/5 backdrop-blur-xl rounded-[2rem] p-6 border border-white/10 hover:border-white/20 transition-all group">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-2.5 bg-emerald-500/20 rounded-2xl text-emerald-400 group-hover:scale-110 transition-transform">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            </div>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Global Ingress</p>
-          </div>
-          <div className="flex justify-between items-center">
-            <p className="font-mono text-2xl text-white font-black">25</p>
-            <span className="text-[10px] text-emerald-400 font-black uppercase tracking-widest bg-emerald-400/10 px-3 py-1.5 rounded-full ring-1 ring-emerald-400/20">Public Access</span>
-          </div>
-        </div>
+      <div className="flex items-center gap-6 relative z-10">
+         <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-emerald-500 shadow-inner">
+             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+         </div>
+         <div>
+             <h2 className="text-white font-bold text-lg leading-tight">SMTP Node Active</h2>
+             <div className="flex items-center gap-2 mt-1">
+                 <span className="relative flex h-2 w-2">
+                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                 </span>
+                 <p className="text-slate-400 text-xs font-mono">{window.location.hostname}</p>
+             </div>
+         </div>
+      </div>
 
-        <div className="bg-white/5 backdrop-blur-xl rounded-[2rem] p-6 border border-white/10 hover:border-white/20 transition-all group">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-2.5 bg-amber-500/20 rounded-2xl text-amber-400 group-hover:scale-110 transition-transform">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-            </div>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Local Submission</p>
-          </div>
-          <div className="flex justify-between items-center">
-            <p className="font-mono text-2xl text-white font-black">587</p>
-            <span className="text-[10px] text-amber-400 font-black uppercase tracking-widest bg-amber-400/10 px-3 py-1.5 rounded-full ring-1 ring-amber-400/20">Encrypted</span>
-          </div>
-        </div>
+      <div className="flex items-center gap-8 relative z-10 w-full md:w-auto justify-around md:justify-end border-t md:border-t-0 md:border-l border-slate-800 pt-4 md:pt-0 md:pl-8">
+         <div className="text-center md:text-left">
+             <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Inbound</p>
+             <p className="text-white font-mono font-bold text-xl">25 <span className="text-emerald-500 text-xs">●</span></p>
+         </div>
+         <div className="text-center md:text-left">
+             <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Submission</p>
+             <p className="text-white font-mono font-bold text-xl">587 <span className="text-emerald-500 text-xs">●</span></p>
+         </div>
+         <button 
+           onClick={onRunDiagnostics}
+           className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border border-slate-700 hover:border-slate-600"
+         >
+           Diagnostics
+         </button>
       </div>
     </div>
   );
