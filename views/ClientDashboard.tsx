@@ -8,6 +8,7 @@ import DashboardSidebar from './dashboard/DashboardSidebar';
 import ServerInfoPanel from './dashboard/ServerInfoPanel';
 import DomainManager from './dashboard/DomainManager';
 import MailboxManager from './dashboard/MailboxManager';
+import GlobalAuditView from './dashboard/GlobalAuditView';
 
 // Modals
 import DnsConfigModal from './dashboard/modals/DnsConfigModal';
@@ -41,6 +42,10 @@ interface Props {
 
 const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpersonate }: Props) => {
   const { addToast } = useToast();
+  
+  // Navigation State
+  const [currentView, setCurrentView] = useState<'dashboard' | 'audit'>('dashboard');
+
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [newDomain, setNewDomain] = useState('');
@@ -227,53 +232,62 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
         onShowLogs={() => setShowLogs(true)} 
         onOpenSettings={() => setShowAccountSettings(true)}
         onOpenInbox={onOpenWebmail}
+        onViewChange={setCurrentView}
+        currentView={currentView}
       />
 
       <main className="flex-1 min-w-0 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             
-            {/* Top Bar / Breadcrumb area could go here */}
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                {/* Server Status Widget */}
-                <div className="lg:col-span-3">
-                    <ServerInfoPanel onRunDiagnostics={runDiagnostics} />
-                </div>
-            </div>
+            {/* AUDIT VIEW */}
+            {currentView === 'audit' && (
+                <GlobalAuditView />
+            )}
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            
-                {/* Domains Column */}
-                <div className="xl:col-span-2 space-y-6">
-                    <DomainManager 
-                        domains={domains}
-                        newDomain={newDomain}
-                        setNewDomain={setNewDomain}
-                        onAddDomain={handleAddDomain}
-                        onDeleteDomain={handleDeleteDomain}
-                        onVerify={handleVerify}
-                        onOpenDns={openDnsModal}
-                        loading={loading}
-                        selectedDomainId={selectedDomainId}
-                        setSelectedDomainId={setSelectedDomainId}
-                        newMailboxEmail={newMailboxEmail}
-                        setNewMailboxEmail={setNewMailboxEmail}
-                        newMailboxPassword={newMailboxPassword}
-                        setNewMailboxPassword={setNewMailboxPassword}
-                        onCreateMailbox={handleCreateMailbox}
-                    />
-                </div>
+            {/* DASHBOARD VIEW */}
+            {currentView === 'dashboard' && (
+                <>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                        {/* Server Status Widget */}
+                        <div className="lg:col-span-3">
+                            <ServerInfoPanel onRunDiagnostics={runDiagnostics} />
+                        </div>
+                    </div>
 
-                {/* Mailboxes Column */}
-                <div className="space-y-6">
-                    <MailboxManager 
-                        mailboxes={mailboxes} 
-                        onDeleteMailbox={handleDeleteMailbox}
-                        onEditMailbox={(mb) => setEditingMailbox(mb)}
-                        onAccessMailbox={handleAccessMailbox}
-                    />
-                </div>
-            </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                        {/* Domains Column */}
+                        <div className="xl:col-span-2 space-y-6">
+                            <DomainManager 
+                                domains={domains}
+                                newDomain={newDomain}
+                                setNewDomain={setNewDomain}
+                                onAddDomain={handleAddDomain}
+                                onDeleteDomain={handleDeleteDomain}
+                                onVerify={handleVerify}
+                                onOpenDns={openDnsModal}
+                                loading={loading}
+                                selectedDomainId={selectedDomainId}
+                                setSelectedDomainId={setSelectedDomainId}
+                                newMailboxEmail={newMailboxEmail}
+                                setNewMailboxEmail={setNewMailboxEmail}
+                                newMailboxPassword={newMailboxPassword}
+                                setNewMailboxPassword={setNewMailboxPassword}
+                                onCreateMailbox={handleCreateMailbox}
+                            />
+                        </div>
+
+                        {/* Mailboxes Column */}
+                        <div className="space-y-6">
+                            <MailboxManager 
+                                mailboxes={mailboxes} 
+                                onDeleteMailbox={handleDeleteMailbox}
+                                onEditMailbox={(mb) => setEditingMailbox(mb)}
+                                onAccessMailbox={handleAccessMailbox}
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
       </main>
 

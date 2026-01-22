@@ -16,6 +16,7 @@ const mailboxRoutes = require('./src/routes/mailboxes');
 const webmailRoutes = require('./src/routes/webmail');
 const systemRoutes = require('./src/routes/system');
 const unifiedAuthRoutes = require('./src/routes/unifiedAuth');
+const auditRoutes = require('./src/routes/audit');
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use('/api/domains', domainRoutes);
 app.use('/api/mailboxes', mailboxRoutes);
 app.use('/api/webmail', webmailRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/audit', auditRoutes);
 
 app.use((err, req, res, next) => {
   logger.error(err.stack);

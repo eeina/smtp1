@@ -7,9 +7,11 @@ interface Props {
   onShowLogs: () => void;
   onOpenSettings: () => void;
   onOpenInbox: () => void;
+  onViewChange?: (view: 'dashboard' | 'audit') => void;
+  currentView?: 'dashboard' | 'audit';
 }
 
-const DashboardSidebar = ({ user, onLogout, onShowLogs, onOpenSettings, onOpenInbox }: Props) => {
+const DashboardSidebar = ({ user, onLogout, onShowLogs, onOpenSettings, onOpenInbox, onViewChange, currentView = 'dashboard' }: Props) => {
   return (
     <div className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 relative z-30 hidden lg:flex">
       {/* Brand */}
@@ -22,9 +24,20 @@ const DashboardSidebar = ({ user, onLogout, onShowLogs, onOpenSettings, onOpenIn
       <div className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
         <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-3 mb-2">Platform</div>
         
-        <button className="w-full flex items-center px-3 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold text-sm">
+        <button 
+            onClick={() => onViewChange && onViewChange('dashboard')}
+            className={`w-full flex items-center px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${currentView === 'dashboard' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+        >
             <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             Dashboard
+        </button>
+
+        <button 
+            onClick={() => onViewChange && onViewChange('audit')}
+            className={`w-full flex items-center px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${currentView === 'audit' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+        >
+             <svg className="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+            Global Audit
         </button>
 
         <button onClick={onOpenInbox} className="w-full flex items-center px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all font-medium text-sm group">
