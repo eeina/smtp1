@@ -56,8 +56,10 @@ const WebmailSidebar = ({ user, view, messages, onCompose, onViewChange, onSetti
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black text-white truncate leading-none mb-1">{user.email.split('@')[0]}</p>
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Node</p>
+              <span className={`w-1.5 h-1.5 rounded-full ${onAdminPanel ? 'bg-blue-500' : 'bg-emerald-500'} animate-pulse`}></span>
+              <p className={`text-[10px] font-black uppercase tracking-widest ${onAdminPanel ? 'text-blue-400' : 'text-slate-500'}`}>
+                  {onAdminPanel ? 'Admin View' : 'Active Node'}
+              </p>
             </div>
           </div>
         </div>
@@ -65,7 +67,7 @@ const WebmailSidebar = ({ user, view, messages, onCompose, onViewChange, onSetti
             {onAdminPanel ? (
                 <>
                     <button onClick={onAdminPanel} className="col-span-2 flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all border border-blue-400/50 shadow-lg shadow-blue-900/50 mb-1">
-                        Admin Panel
+                        Back to Admin
                     </button>
                     <button onClick={onSettings} className="flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all border border-slate-700/50">Settings</button>
                     <button onClick={onLogout} className="flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest bg-red-900/10 hover:bg-red-900/30 text-red-500 rounded-xl transition-all border border-red-900/20">Exit</button>
