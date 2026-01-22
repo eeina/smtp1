@@ -1,74 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import api from '../../api';
-import Spinner from '../../components/Spinner';
-import { useToast } from '../../components/ToastContext';
 import { User } from '../../types';
+import { useToast } from '../../components/ToastContext';
 
 interface Props {
   show: boolean;
-  user: User;
   onClose: () => void;
-  initialTo?: string;
-  initialSubject?: string;
-  initialBody?: string;
-  initialDraftId?: string;
   onSuccess: () => void;
+  data: { to: string; subject: string; body: string; draftId?: string };
+  user: User;
 }
 
-const MAX_FILE_SIZE_MB = 150; 
-
-const formatSize = (bytes: number) => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
-
-const RichTextToolbar = ({ onCmd, onImage }: { onCmd: (cmd: string, val?: string) => void, onImage: () => void }) => {
-    const Btn = ({ cmd, label, val }: any) => (
-        <button 
-            type="button" 
-            onMouseDown={(e) => { e.preventDefault(); onCmd(cmd, val); }}
-            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-            title={label}
-        >
-            {label}
-        </button>
-    );
-
-    return (
-        <div className="flex items-center gap-1 border-b border-gray-200 p-2 bg-gray-50 overflow-x-auto">
-            <Btn cmd="bold" label={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h8a4 4 0 100-8H6v8zm0 0h8a4 4 0 110 8H6v-8z" /></svg>} />
-            <Btn cmd="italic" label={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>} />
-            <Btn cmd="underline" label={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>} />
-            <div className="w-px h-4 bg-gray-300 mx-1"></div>
-            <Btn cmd="insertUnorderedList" label={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>} />
-            <Btn cmd="insertOrderedList" label={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20h14M7 4h14M21 12H7M3 20h.01M3 4h.01M3 12h.01" /></svg>} />
-            <div className="w-px h-4 bg-gray-300 mx-1"></div>
-            <button 
-                type="button"
-                onMouseDown={(e) => { e.preventDefault(); onImage(); }}
-                className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-                title="Insert Image"
-            >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            </button>
-        </div>
-    );
-};
-
-const WebmailCompose = ({ show, user, onClose, initialTo, initialSubject, initialBody, initialDraftId, onSuccess }: Props) => {
+const WebmailCompose = ({ show, onClose, onSuccess, data, user }: Props) => {
   const { addToast } = useToast();
+  
   const [to, setTo] = useState('');
-  const [cc, setCc] = useState('');
-  const [bcc, setBcc] = useState('');
-  const [showCc, setShowCc] = useState(false);
-  const [showBcc, setShowBcc] = useState(false);
   const [subject, setSubject] = useState('');
   const [sending, setSending] = useState(false);
-  const [savingDraft, setSavingDraft] = useState(false);
-  const [draftId, setDraftId] = useState<string | undefined>();
   const [attachments, setAttachments] = useState<File[]>([]);
   
   const editorRef = useRef<HTMLDivElement>(null);
@@ -76,173 +24,152 @@ const WebmailCompose = ({ show, user, onClose, initialTo, initialSubject, initia
 
   useEffect(() => {
     if (show) {
-        setTo(initialTo || '');
-        setSubject(initialSubject || '');
-        setCc('');
-        setBcc('');
+        setTo(data.to);
+        setSubject(data.subject);
         setAttachments([]);
-        setDraftId(initialDraftId);
-        
-        if(editorRef.current) {
-             let bodyContent = initialBody || '';
-             // If it's a new email (not a reply/draft), append signature
-             if (!initialBody && user.signature) {
-                 bodyContent = `<p><br></p><p><br></p><div class="signature" style="color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0; padding-top: 8px;">${user.signature.replace(/\n/g, '<br>')}</div>`;
-             }
-             editorRef.current.innerHTML = bodyContent;
-             setTimeout(() => {
-                 if (editorRef.current) {
-                     editorRef.current.focus();
-                     // Set cursor at start
-                     const selection = window.getSelection();
-                     const range = document.createRange();
-                     range.setStart(editorRef.current, 0);
-                     range.collapse(true);
-                     selection?.removeAllRanges();
-                     selection?.addRange(range);
-                 }
-             }, 50);
-        }
+        // Initialize editor
+        setTimeout(() => {
+            if (editorRef.current) {
+                let content = data.body;
+                if (!content && user.signature) {
+                    content = `<p><br></p><div style="margin-top:20px; border-top:1px solid #ddd; padding-top:10px; color:#666;">${user.signature.replace(/\n/g, '<br>')}</div>`;
+                }
+                editorRef.current.innerHTML = content || '<p><br></p>';
+                editorRef.current.focus();
+            }
+        }, 100);
     }
-  }, [show, initialTo, initialSubject, initialBody, initialDraftId, user.signature]);
+  }, [show, data, user.signature]);
 
   if (!show) return null;
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-        const filesArray = Array.from(e.target.files) as File[];
-        const validFiles = filesArray.filter(f => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
-        setAttachments(prev => [...prev, ...validFiles]);
-    }
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const execCmd = (cmd: string, val?: string) => {
-      document.execCommand(cmd, false, val);
-      if(editorRef.current) editorRef.current.focus();
-  };
-
-  const handleInsertImage = () => {
-      const url = prompt("Enter Image URL:");
-      if(url) execCmd('insertImage', url);
-  };
-
-  const handleSaveDraft = async () => {
-      if (!editorRef.current) return;
-      setSavingDraft(true);
-      try {
-          const res = await api.post('/api/webmail/messages/draft', {
-              id: draftId,
-              to,
-              subject,
-              htmlBody: editorRef.current.innerHTML
-          });
-          setDraftId(res.data._id);
-          addToast('Draft saved', 'info');
-          onSuccess();
-      } catch (err) {
-          addToast('Failed to save draft', 'error');
-      } finally {
-          setSavingDraft(false);
-      }
-  };
-
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(!editorRef.current) return;
-
     setSending(true);
-    const htmlBody = editorRef.current.innerHTML;
-
+    
     try {
-      const formData = new FormData();
-      formData.append('to', to);
-      formData.append('cc', cc);
-      formData.append('bcc', bcc);
-      formData.append('subject', subject);
-      formData.append('htmlBody', htmlBody);
-      if (draftId) formData.append('draftId', draftId);
-      
-      attachments.forEach(file => {
-          formData.append('attachments', file);
-      });
+        const formData = new FormData();
+        formData.append('to', to);
+        formData.append('subject', subject);
+        formData.append('htmlBody', editorRef.current?.innerHTML || '');
+        if (data.draftId) formData.append('draftId', data.draftId);
+        
+        attachments.forEach(file => formData.append('attachments', file));
 
-      await api.post('/api/webmail/send', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      onSuccess();
-      onClose();
-      addToast('Message sent successfully', 'success');
+        await api.post('/api/webmail/send', formData);
+        addToast('Sent successfully', 'success');
+        onSuccess();
+        onClose();
     } catch (err: any) {
-      addToast(err.response?.data?.error || 'Failed to send message', 'error');
+        addToast(err.response?.data?.error || 'Failed to send', 'error');
     } finally {
-      setSending(false);
+        setSending(false);
     }
   };
 
+  const handleAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+  };
+
+  // Minimal Toolbar Buttons
+  const ToolbarBtn = ({ cmd, icon }: any) => (
+      <button 
+        type="button" 
+        onMouseDown={(e) => { e.preventDefault(); document.execCommand(cmd, false); }}
+        className="p-1.5 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200 rounded transition-colors"
+      >
+          {icon}
+      </button>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden flex items-end sm:items-center justify-center p-0 sm:p-4 bg-gray-900/30 backdrop-blur-sm">
-        <div className="bg-white w-full sm:max-w-3xl h-full sm:h-[85vh] sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 duration-200">
-            <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-                <h3 className="text-lg font-bold text-gray-900">New Message</h3>
-                <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-1 border border-gray-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="bg-white w-full max-w-2xl h-[70vh] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 ring-1 ring-zinc-200">
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-100 bg-zinc-50">
+                <h3 className="text-sm font-bold text-zinc-700">New Message</h3>
+                <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            
+
             <form onSubmit={handleSend} className="flex-1 flex flex-col min-h-0">
-                <div className="px-4 sm:px-6 py-4 space-y-4 overflow-y-auto flex-1">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-                            <span className="text-sm font-semibold text-gray-500 w-10">To</span>
-                            <input type="text" value={to} onChange={e => setTo(e.target.value)} className="flex-1 outline-none text-sm text-gray-800" placeholder="recipient@example.com" required />
-                            <div className="flex gap-2 text-xs text-gray-500">
-                                <button type="button" onClick={() => setShowCc(!showCc)} className="hover:text-gray-800 hover:underline">Cc</button>
-                                <button type="button" onClick={() => setShowBcc(!showBcc)} className="hover:text-gray-800 hover:underline">Bcc</button>
-                            </div>
-                        </div>
-                        {showCc && <div className="flex items-center gap-2 border-b border-gray-100 pb-2 animate-in fade-in slide-in-from-top-1"><span className="text-sm font-semibold text-gray-500 w-10">Cc</span><input type="text" value={cc} onChange={e => setCc(e.target.value)} className="flex-1 outline-none text-sm text-gray-800" placeholder="cc@example.com"/></div>}
-                        {showBcc && <div className="flex items-center gap-2 border-b border-gray-100 pb-2 animate-in fade-in slide-in-from-top-1"><span className="text-sm font-semibold text-gray-500 w-10">Bcc</span><input type="text" value={bcc} onChange={e => setBcc(e.target.value)} className="flex-1 outline-none text-sm text-gray-800" placeholder="bcc@example.com"/></div>}
-                        <div className="flex items-center gap-2 border-b border-gray-100 pb-2"><span className="text-sm font-semibold text-gray-500 w-10">Subject</span><input type="text" value={subject} onChange={e => setSubject(e.target.value)} className="flex-1 outline-none text-sm text-gray-800 font-medium" placeholder="Subject"/></div>
+                {/* Inputs */}
+                <div className="px-4 py-2 space-y-2 border-b border-zinc-100">
+                    <div className="flex items-center gap-3">
+                        <label className="text-xs font-semibold text-zinc-500 w-12">To</label>
+                        <input 
+                            type="text" 
+                            className="flex-1 py-1.5 text-sm outline-none text-zinc-800 placeholder:text-zinc-300"
+                            placeholder="recipient@example.com"
+                            value={to}
+                            onChange={e => setTo(e.target.value)}
+                            required
+                            autoFocus
+                        />
                     </div>
-                    
-                    <div className="flex flex-col h-full min-h-[300px] border border-gray-200 rounded-lg overflow-hidden bg-white">
-                        <RichTextToolbar onCmd={execCmd} onImage={handleInsertImage} />
-                        <div ref={editorRef} contentEditable className="flex-1 p-4 outline-none overflow-y-auto text-sm font-sans" style={{ minHeight: '200px' }}></div>
+                    <div className="flex items-center gap-3">
+                        <label className="text-xs font-semibold text-zinc-500 w-12">Subject</label>
+                        <input 
+                            type="text" 
+                            className="flex-1 py-1.5 text-sm outline-none text-zinc-800 font-medium placeholder:text-zinc-300"
+                            placeholder="Subject line"
+                            value={subject}
+                            onChange={e => setSubject(e.target.value)}
+                            required
+                        />
                     </div>
-                    
-                    {attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2 pt-2">
-                            {attachments.map((file, idx) => (
-                                <div key={idx} className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-[10px] text-gray-700 border border-gray-200 shadow-sm">
-                                    <svg className="w-3 h-3 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                    <span className="max-w-[120px] truncate font-medium">{file.name}</span>
-                                    <span className="text-gray-400 font-normal">({formatSize(file.size)})</span>
-                                    <button type="button" onClick={() => removeAttachment(idx)} className="ml-1 p-0.5 hover:bg-gray-200 rounded-full transition-colors"><svg className="w-3 h-3 text-gray-400 hover:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
-                
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center pb-safe">
-                    <div className="flex items-center gap-3">
-                         <input type="file" multiple ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
-                         <button type="button" onClick={() => fileInputRef.current?.click()} className="text-gray-500 hover:text-gray-900 hover:bg-gray-200 p-2 rounded-full transition-colors" title="Attach File"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg></button>
-                         <button type="button" onClick={handleSaveDraft} disabled={savingDraft} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-colors">
-                             {savingDraft ? 'Saving...' : 'Save Draft'}
-                         </button>
+
+                {/* Toolbar */}
+                <div className="px-3 py-1.5 border-b border-zinc-100 flex gap-1 bg-zinc-50/50">
+                    <ToolbarBtn cmd="bold" icon={<b className="font-serif font-bold">B</b>} />
+                    <ToolbarBtn cmd="italic" icon={<i className="font-serif italic">I</i>} />
+                    <ToolbarBtn cmd="underline" icon={<u className="font-serif underline">U</u>} />
+                    <div className="w-px h-4 bg-zinc-200 mx-1 self-center"></div>
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1.5 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200 rounded">
+                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                    </button>
+                    <input type="file" multiple className="hidden" ref={fileInputRef} onChange={handleAttach} />
+                </div>
+
+                {/* Editor */}
+                <div 
+                    ref={editorRef}
+                    contentEditable
+                    className="flex-1 p-4 outline-none overflow-y-auto text-sm text-zinc-800 font-sans"
+                    style={{ minHeight: '150px' }}
+                ></div>
+
+                {/* Attachments List */}
+                {attachments.length > 0 && (
+                    <div className="px-4 py-2 border-t border-zinc-100 bg-zinc-50 flex gap-2 flex-wrap max-h-24 overflow-y-auto">
+                        {attachments.map((f, i) => (
+                            <div key={i} className="text-xs bg-white border border-zinc-200 px-2 py-1 rounded-md flex items-center gap-2 shadow-sm">
+                                <span className="truncate max-w-[150px]">{f.name}</span>
+                                <button type="button" onClick={() => setAttachments(p => p.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-700">×</button>
+                            </div>
+                        ))}
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button type="button" onClick={onClose} className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">Discard</button>
-                        <button type="submit" disabled={sending} className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm">
-                            {sending ? <><Spinner /> Uploading...</> : 'Send'}
-                        </button>
-                    </div>
+                )}
+
+                {/* Footer */}
+                <div className="p-4 border-t border-zinc-100 flex justify-end gap-3 bg-zinc-50">
+                    <button 
+                        type="button" 
+                        onClick={onClose}
+                        className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+                    >
+                        Discard
+                    </button>
+                    <button 
+                        type="submit" 
+                        disabled={sending}
+                        className="bg-black text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-zinc-800 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
+                    >
+                        {sending && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                        Send Message
+                    </button>
                 </div>
             </form>
         </div>

@@ -3,11 +3,10 @@ import api from '../api';
 import { User, EmailMessage } from '../types';
 import { useToast } from '../components/ToastContext';
 
-// Import New Modular Components
+// Components
 import WebmailSidebar from './webmail/WebmailSidebar';
 import WebmailMessageList from './webmail/WebmailMessageList';
 import WebmailReadingPane from './webmail/WebmailReadingPane';
-import WebmailMobileNav from './webmail/WebmailMobileNav';
 import WebmailCompose from './webmail/WebmailCompose';
 import WebmailSettings from './webmail/WebmailSettings';
 
@@ -26,111 +25,100 @@ const WebmailView = ({ user, onLogout, onAdminPanel }: WebmailViewProps) => {
   
   // View State
   const [view, setView] = useState<'inbox' | 'sent' | 'drafts'>('inbox');
-  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   // Pagination State
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalMessages, setTotalMessages] = useState(0);
+  const [pagination, setPagination] = useState({ total: 0, pages: 1 });
   
   // Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
-  // Modals State
+  // UI State
   const [showCompose, setShowCompose] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  
-  // Compose Pre-fill State
-  const [composeTo, setComposeTo] = useState('');
-  const [composeSubject, setComposeSubject] = useState('');
-  const [composeBody, setComposeBody] = useState('');
-  const [composeDraftId, setComposeDraftId] = useState<string | undefined>();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Compose State
+  const [composeData, setComposeData] = useState({ to: '', subject: '', body: '', draftId: undefined as string | undefined });
 
   // Fetch Messages
   const fetchMessages = useCallback(async (isPolling = false) => {
-    if (!isPolling) setLoadingMessages(true);
+    if (!isPolling) setLoading(true);
     try {
       const res = await api.get('/api/webmail/messages', {
         params: { folder: view, page, limit: 20 }
       });
       setMessages(res.data.messages);
-      setTotalPages(res.data.pagination.pages);
-      setTotalMessages(res.data.pagination.total);
+      setPagination(res.data.pagination);
     } catch (err) {
-      // If admin has no mailbox created yet, this might 403 or 500.
       console.error(err);
     } finally {
-      if (!isPolling) setLoadingMessages(false);
+      if (!isPolling) setLoading(false);
     }
   }, [view, page]);
 
+  // Initial Load & Polling
   useEffect(() => {
     fetchMessages();
-    let int: any;
+    let interval: any;
     if (page === 1) {
-        int = setInterval(() => fetchMessages(true), 15000);
+        interval = setInterval(() => fetchMessages(true), 10000);
     }
-    return () => clearInterval(int);
+    return () => clearInterval(interval);
   }, [fetchMessages, page]);
 
-  // Reset state on view change
+  // Reset Selection on View Change
   useEffect(() => {
       setPage(1);
       setSelectedIds(new Set());
       setSelectedMsg(null);
+      setMobileMenuOpen(false);
   }, [view]);
 
-  // Handlers
+  // -- Handlers --
+
   const handleSelectMessage = async (msg: EmailMessage) => {
     if (msg.folder === 'drafts') {
-        setComposeTo(msg.to);
-        setComposeSubject(msg.subject);
-        setComposeBody(msg.html_body || msg.text_body);
-        setComposeDraftId(msg._id);
+        setComposeData({
+            to: msg.to,
+            subject: msg.subject,
+            body: msg.html_body || msg.text_body,
+            draftId: msg._id
+        });
         setShowCompose(true);
         return;
     }
 
     setSelectedMsg(msg);
+    // Mark as read locally immediately for UI snap
     if (!msg.is_read) {
         setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, is_read: true } : m));
         try { await api.patch(`/api/webmail/messages/${msg._id}/read`); } catch (err) {}
     }
   };
 
-  const toggleSelection = (id: string, e: React.SyntheticEvent) => {
-    e.stopPropagation();
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedIds(newSet);
+  const handleCompose = () => {
+      setComposeData({ to: '', subject: '', body: '', draftId: undefined });
+      setShowCompose(true);
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === messages.length) {
-        setSelectedIds(new Set());
-    } else {
-        setSelectedIds(new Set(messages.map(m => m._id)));
-    }
+  const handleReply = () => {
+    if (!selectedMsg) return;
+    const replyTo = view === 'inbox' ? selectedMsg.from : selectedMsg.to;
+    const cleanFrom = selectedMsg.from.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const replyBody = `<p><br></p><blockquote style="border-left: 2px solid #ccc; margin-left: 0; padding-left: 10px; color: #666;">On ${new Date(selectedMsg.created_at).toLocaleString()}, ${cleanFrom} wrote:<br>${selectedMsg.html_body || selectedMsg.text_body}</blockquote>`;
+    
+    setComposeData({
+        to: replyTo,
+        subject: selectedMsg.subject.startsWith('Re:') ? selectedMsg.subject : `Re: ${selectedMsg.subject}`,
+        body: replyBody,
+        draftId: undefined
+    });
+    setShowCompose(true);
   };
 
-  const handleBatchDelete = async () => {
-    if(!confirm(`Delete ${selectedIds.size} messages?`)) return;
-    try {
-        await api.post('/api/webmail/messages/batch-delete', { ids: Array.from(selectedIds) });
-        addToast('Messages deleted', 'success');
-        setSelectedIds(new Set());
-        fetchMessages();
-        if (selectedMsg && selectedIds.has(selectedMsg._id)) {
-            setSelectedMsg(null);
-        }
-    } catch (err) {
-        addToast('Failed to delete messages', 'error');
-    }
-  };
-
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
+  const handleDelete = async (id: string) => {
     if(!confirm('Delete this message?')) return;
     try {
         await api.delete(`/api/webmail/messages/${id}`);
@@ -138,116 +126,75 @@ const WebmailView = ({ user, onLogout, onAdminPanel }: WebmailViewProps) => {
         if (selectedMsg?._id === id) setSelectedMsg(null);
         addToast('Message deleted', 'success');
     } catch(err) {
-        addToast('Failed to delete message', 'error');
-        fetchMessages();
+        addToast('Failed to delete', 'error');
     }
   };
 
-  const handleReply = () => {
-    if (!selectedMsg) return;
-    const replyTo = view === 'inbox' ? selectedMsg.from : selectedMsg.to;
-    const replySubject = selectedMsg.subject.startsWith('Re:') ? selectedMsg.subject : `Re: ${selectedMsg.subject}`;
-    
-    const dateStr = new Date(selectedMsg.created_at).toLocaleString();
-    const cleanFrom = selectedMsg.from.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const originalContent = selectedMsg.html_body || selectedMsg.text_body.replace(/\n/g, '<br>');
-
-    const quoteHtml = `<p><br></p><p><br></p><blockquote style="margin: 0 0 0 0.8ex; border-left: 1px #ccc solid; padding-left: 1ex;">
-    On ${dateStr}, ${cleanFrom} wrote:<br>
-    ${originalContent}
-    </blockquote>`;
-
-    setComposeTo(replyTo);
-    setComposeSubject(replySubject);
-    setComposeBody(quoteHtml);
-    setComposeDraftId(undefined);
-    setShowCompose(true);
-  };
-
-  const handleCompose = () => {
-      setComposeTo('');
-      setComposeSubject('');
-      setComposeBody('');
-      setComposeDraftId(undefined);
-      setShowCompose(true);
+  // Batch Selection Logic
+  const toggleSelection = (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const next = new Set(selectedIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setSelectedIds(next);
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+    <div className="flex h-screen bg-black text-slate-200 overflow-hidden font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
       
-      {/* 1. Desktop Sidebar */}
+      {/* 1. Sidebar (Navigation) */}
       <WebmailSidebar 
         user={user}
         view={view}
-        messages={messages}
+        unreadCount={messages.filter(m => m.folder === 'inbox' && !m.is_read).length}
         onCompose={handleCompose}
-        onViewChange={(v) => { setView(v); setSelectedMsg(null); }}
+        onViewChange={setView}
         onSettings={() => setShowSettings(true)}
         onLogout={onLogout}
         onAdminPanel={onAdminPanel}
+        mobileOpen={mobileMenuOpen}
+        setMobileOpen={setMobileMenuOpen}
       />
 
-      {/* 2. Message List */}
+      {/* 2. Message List (The Feed) */}
       <WebmailMessageList 
-        user={user}
         messages={messages}
         selectedMsg={selectedMsg}
-        onSelect={handleSelectMessage}
-        view={view}
-        loading={loadingMessages}
-        onRefresh={() => fetchMessages()}
         selectedIds={selectedIds}
-        toggleSelectAll={toggleSelectAll}
-        toggleSelection={toggleSelection}
-        onBatchDelete={handleBatchDelete}
-        page={page}
-        totalPages={totalPages}
-        setPage={setPage}
-        totalMessages={totalMessages}
-      />
-
-      {/* 3. Reading Pane */}
-      <WebmailReadingPane 
-        selectedMsg={selectedMsg}
-        onBack={() => setSelectedMsg(null)}
-        onDelete={handleDelete}
-        onReply={handleReply}
-      />
-
-      {/* 4. Mobile Bottom Navigation */}
-      {!selectedMsg && (
-          <WebmailMobileNav 
-            view={view}
-            onViewChange={(v) => { setView(v); setSelectedMsg(null); }}
-            onCompose={handleCompose}
-            onSettings={() => setShowSettings(true)}
-            showSettings={showSettings}
-          />
-      )}
-
-      {/* 5. Compose Modal */}
-      <WebmailCompose 
-        show={showCompose}
-        user={user}
-        onClose={() => setShowCompose(false)}
-        initialTo={composeTo}
-        initialSubject={composeSubject}
-        initialBody={composeBody}
-        initialDraftId={composeDraftId}
-        onSuccess={() => {
-            fetchMessages();
+        loading={loading}
+        view={view}
+        onSelect={handleSelectMessage}
+        onToggleSelect={toggleSelection}
+        onRefresh={() => fetchMessages()}
+        onMobileMenu={() => setMobileMenuOpen(true)}
+        pagination={{
+            page,
+            totalPages: pagination.pages,
+            next: () => setPage(p => p + 1),
+            prev: () => setPage(p => Math.max(1, p - 1))
         }}
       />
 
-      {/* 6. Settings Modal */}
-      {showSettings && (
-        <WebmailSettings 
-            user={user}
-            onClose={() => setShowSettings(false)}
-            onLogout={onLogout}
-        />
-      )}
+      {/* 3. Reading Pane (The Content) */}
+      <WebmailReadingPane 
+        message={selectedMsg}
+        onClose={() => setSelectedMsg(null)}
+        onDelete={() => selectedMsg && handleDelete(selectedMsg._id)}
+        onReply={handleReply}
+      />
 
+      {/* Modals */}
+      <WebmailCompose 
+        show={showCompose}
+        onClose={() => setShowCompose(false)}
+        onSuccess={() => { fetchMessages(); }}
+        data={composeData}
+        user={user}
+      />
+
+      {showSettings && (
+          <WebmailSettings user={user} onClose={() => setShowSettings(false)} onLogout={onLogout} />
+      )}
     </div>
   );
 };
