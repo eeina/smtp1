@@ -28,6 +28,7 @@ export interface Mailbox {
   recovery_email?: string;
   signature?: string;
   domain_id: { _id: string; name: string } | string;
+  last_admin_access?: string; // Date string
 }
 
 export interface AttachmentMeta {

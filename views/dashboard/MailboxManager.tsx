@@ -26,15 +26,29 @@ const MailboxManager = ({ mailboxes, onDeleteMailbox, onEditMailbox, onAccessMai
         {mailboxes.map(mb => {
             const quota = (mb as any).quota_bytes || 1073741824;
             const formattedQuota = Math.round(quota / 1024 / 1024 / 1024);
+            const hasViewed = !!mb.last_admin_access;
             
             return (
               <div key={mb._id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-sm flex-shrink-0 ring-2 ring-white">
-                        {mb.email.charAt(0).toUpperCase()}
+                    <div className="relative">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-sm flex-shrink-0 ring-2 ring-white">
+                            {mb.email.charAt(0).toUpperCase()}
+                        </div>
+                        {!hasViewed && (
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white"></span>
+                            </span>
+                        )}
                     </div>
                     <div className="min-w-0 flex-1 mr-4">
-                        <div className="text-sm font-semibold text-gray-800 truncate" title={mb.email}>{mb.email}</div>
+                        <div className="flex items-center gap-2">
+                            <div className="text-sm font-semibold text-gray-800 truncate" title={mb.email}>{mb.email}</div>
+                            {!hasViewed && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 text-[9px] font-black uppercase tracking-wide border border-red-100">Unreviewed</span>
+                            )}
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
                             <div className="flex-1 h-1.5 bg-gray-100 rounded-full max-w-[100px] overflow-hidden">
                                 {/* Simulating 0% usage for now since backend doesn't track live usage yet, but UI is ready */}

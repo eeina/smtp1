@@ -35,6 +35,10 @@ router.post('/:id/impersonate', authenticateClient, async (req, res) => {
     const domain = await Domain.findOne({ _id: mailbox.domain_id, client_id: req.user.client_id });
     if (!domain) return res.status(403).json({ error: 'Access denied' });
 
+    // Update the last_admin_access timestamp
+    mailbox.last_admin_access = new Date();
+    await mailbox.save();
+
     const token = jwt.sign({ mailbox_id: mailbox._id, email: mailbox.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
     
     logger.info(`Admin impersonating mailbox: ${mailbox.email}`);

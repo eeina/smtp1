@@ -38,6 +38,10 @@ const mailboxSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  last_admin_access: {
+    type: Date,
+    default: null
+  },
   created_at: {
     type: Date,
     default: Date.now
