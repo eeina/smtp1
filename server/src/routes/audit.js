@@ -12,17 +12,33 @@ router.get('/messages', authenticateClient, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
+    const search = req.query.search ? req.query.search.trim() : '';
+    const direction = req.query.direction; // 'inbound' | 'outbound' | ''
 
     // 1. Find all domains owned by client
     const domains = await Domain.find({ client_id: req.user.client_id }).select('_id');
     const domainIds = domains.map(d => d._id);
 
     // 2. Find all mailboxes for these domains
-    const mailboxes = await Mailbox.find({ domain_id: { $in: domainIds } }).select('_id email');
+    const mailboxes = await Mailbox.find({ domain_id: { $in: domainIds } }).select('_id');
     const mailboxIds = mailboxes.map(m => m._id);
 
-    // 3. Find all messages belonging to these mailboxes
+    // 3. Build Query
     const query = { mailbox_id: { $in: mailboxIds } };
+
+    if (direction && (direction === 'inbound' || direction === 'outbound')) {
+        query.direction = direction;
+    }
+
+    if (search) {
+        // Escape special regex chars if needed, but simple for now
+        const searchRegex = new RegExp(search, 'i');
+        query.$or = [
+            { from: searchRegex },
+            { to: searchRegex },
+            { subject: searchRegex }
+        ];
+    }
     
     const [messages, total] = await Promise.all([
       EmailMessage.find(query)
