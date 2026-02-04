@@ -51,12 +51,16 @@ const WebmailView = ({ user, onLogout, onAdminPanel }: WebmailViewProps) => {
       });
       setMessages(res.data.messages);
       setPagination(res.data.pagination);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      // Auto-logout on 403 Forbidden or 401 Unauthorized (Session Invalid/Expired)
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          onLogout();
+      }
     } finally {
       if (!isPolling) setLoading(false);
     }
-  }, [view, page]);
+  }, [view, page, onLogout]);
 
   // Initial Load & Polling
   useEffect(() => {

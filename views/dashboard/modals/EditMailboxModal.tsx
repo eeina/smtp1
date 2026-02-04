@@ -108,6 +108,28 @@ const EditMailboxModal = ({ mailbox, onClose, onSuccess }: Props) => {
                             onChange={e => setQuota(parseInt(e.target.value))}
                         />
                     </div>
+
+                    <div className="mt-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">SMTP Configuration (Outbound)</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span className="block text-xs text-slate-400">Server Hostname</span>
+                                <div className="font-mono font-medium text-slate-700">{window.location.hostname}</div>
+                            </div>
+                            <div>
+                                <span className="block text-xs text-slate-400">Port</span>
+                                <div className="font-mono font-medium text-slate-700">587 <span className="text-xs text-slate-400">(STARTTLS)</span></div>
+                            </div>
+                            <div>
+                                <span className="block text-xs text-slate-400">Username</span>
+                                <div className="font-mono font-medium text-slate-700 truncate" title={mailbox.email}>{mailbox.email}</div>
+                            </div>
+                            <div>
+                                <span className="block text-xs text-slate-400">Auth</span>
+                                <div className="font-mono font-medium text-slate-700">Normal Password</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
