@@ -1,26 +1,29 @@
 const { execSync } = require('child_process');
 
 console.log('=========================================');
-console.log('   Local MongoDB Setup Script');
+console.log('   Official MongoDB Setup Script');
 console.log('=========================================\n');
 
 try {
-    console.log('⏳ Step 1: Updating system package list...');
+    console.log('⏳ Step 1: Installing prerequisites (curl, gnupg)...');
+    execSync('apt-get install -y gnupg curl', { stdio: 'inherit' });
+
+    console.log('\n⏳ Step 2: Importing MongoDB Official GPG Key...');
+    execSync('curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor --yes', { stdio: 'inherit' });
+
+    console.log('\n⏳ Step 3: Adding MongoDB Official Repository...');
+    execSync('echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/7.0 multiverse" > /etc/apt/sources.list.d/mongodb-org-7.0.list', { stdio: 'inherit' });
+
+    console.log('\n⏳ Step 4: Updating package list...');
     execSync('apt-get update', { stdio: 'inherit' });
 
-    console.log('\n⏳ Step 2: Installing MongoDB...');
-    try {
-        // Try the standard mongodb package first
-        execSync('apt-get install -y mongodb', { stdio: 'inherit' });
-    } catch (err) {
-        console.log('Standard package failed, trying mongodb-server...');
-        execSync('apt-get install -y mongodb-server', { stdio: 'inherit' });
-    }
+    console.log('\n⏳ Step 5: Installing MongoDB (mongodb-org)...');
+    execSync('apt-get install -y mongodb-org', { stdio: 'inherit' });
 
-    console.log('\n⏳ Step 3: Starting and enabling MongoDB service...');
-    // The service name is usually 'mongodb' on Ubuntu when installed from default repos
-    execSync('systemctl start mongodb', { stdio: 'inherit' });
-    execSync('systemctl enable mongodb', { stdio: 'inherit' });
+    console.log('\n⏳ Step 6: Starting and enabling MongoDB service...');
+    // Note: The official package uses 'mongod' instead of 'mongodb'
+    execSync('systemctl start mongod', { stdio: 'inherit' });
+    execSync('systemctl enable mongod', { stdio: 'inherit' });
 
     console.log('\n✅ SUCCESS: MongoDB is now installed and running locally!');
     
@@ -38,8 +41,4 @@ try {
 } catch (error) {
     console.error('\n❌ ERROR: Something went wrong during the installation.');
     console.error(error.message);
-    console.log('\nPlease try running the commands manually:');
-    console.log('apt-get update');
-    console.log('apt-get install -y mongodb');
-    console.log('systemctl enable --now mongodb');
 }
