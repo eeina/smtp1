@@ -22,9 +22,10 @@ const AuthView = ({ onSuccess, onBack }: AuthViewProps) => {
 
     try {
       const res = await api.post('/api/login', { email, password });
-      const { token, role, email: userEmail, company_name } = res.data;
+      const { token, role, email: userEmail, company_name, _id } = res.data;
       localStorage.setItem('smtp_token', token);
       onSuccess({
+        _id,
         email: userEmail,
         company_name: company_name,
         token,

@@ -9,6 +9,7 @@ import ServerInfoPanel from './dashboard/ServerInfoPanel';
 import DomainManager from './dashboard/DomainManager';
 import MailboxManager from './dashboard/MailboxManager';
 import GlobalAuditView from './dashboard/GlobalAuditView';
+import AdminManager from './dashboard/AdminManager';
 
 // Modals
 import DnsConfigModal from './dashboard/modals/DnsConfigModal';
@@ -44,7 +45,7 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
   const { addToast } = useToast();
   
   // Navigation State
-  const [currentView, setCurrentView] = useState<'dashboard' | 'audit'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'audit' | 'admins'>('dashboard');
 
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
@@ -246,6 +247,11 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
             {/* AUDIT VIEW */}
             {currentView === 'audit' && (
                 <GlobalAuditView />
+            )}
+
+            {/* ADMINS VIEW */}
+            {currentView === 'admins' && (
+                <AdminManager currentUser={user} />
             )}
 
             {/* DASHBOARD VIEW */}

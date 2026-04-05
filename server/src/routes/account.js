@@ -11,6 +11,7 @@ router.get('/profile', authenticateClient, async (req, res) => {
         const client = await Client.findById(req.user.client_id);
         if(!client) return res.status(404).json({error: "Client not found"});
         res.json({
+            _id: client._id,
             email: client.email,
             first_name: client.first_name,
             last_name: client.last_name,

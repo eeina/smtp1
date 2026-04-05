@@ -1,6 +1,7 @@
 import 'react';
 
 export interface User {
+  _id: string;
   email: string;
   first_name?: string;
   last_name?: string;
@@ -9,6 +10,7 @@ export interface User {
   signature?: string;
   token?: string;
   role: 'client' | 'mailbox';
+  created_at?: string;
 }
 
 export interface Domain {

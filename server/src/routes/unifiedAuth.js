@@ -35,6 +35,7 @@ router.post('/', async (req, res) => {
         return res.json({
           token,
           role: 'client',
+          _id: client._id,
           email: client.email,
           first_name: client.first_name,
           last_name: client.last_name,
@@ -53,6 +54,7 @@ router.post('/', async (req, res) => {
         return res.json({
           token,
           role: 'mailbox',
+          _id: mailbox._id,
           email: mailbox.email,
           first_name: mailbox.first_name,
           last_name: mailbox.last_name
