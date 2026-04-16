@@ -196,7 +196,9 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
     const formData = new FormData(e.target as HTMLFormElement);
     const recoveryEmail = formData.get('recoveryEmail') as string;
 
-    const fullEmail = `${newMailboxEmail}@${domain.name}`;
+    // Strictly clean the prefix to ensure no @ symbols exist
+    const cleanPrefix = newMailboxEmail.split('@')[0].trim();
+    const fullEmail = `${cleanPrefix}@${domain.name}`;
 
     try {
       await api.post(`/api/domains/${selectedDomainId}/mailboxes`, {

@@ -114,14 +114,18 @@ router.post('/:id/mailboxes', authenticateClient, async (req, res) => {
   try {
     const { email, password, quota_bytes, recovery_email, first_name, last_name } = req.body;
     
+    logger.info(`[Mailbox Creation] Attempting to create mailbox. Payload email: "${email}"`);
+
     // Verify domain ownership
     const domain = await Domain.findOne({ _id: req.params.id, client_id: req.user.client_id });
     if (!domain) return res.status(404).json({ error: 'Domain not found' });
     if (!domain.is_verified) return res.status(400).json({ error: 'Domain not verified' });
     
-    // Check if email ends with domain.name
-    if (!email.toLowerCase().endsWith(`@${domain.name}`)) {
-      return res.status(400).json({ error: `Email must end with @${domain.name}` });
+    // Strict email validation
+    const emailParts = email.toLowerCase().split('@');
+    if (emailParts.length !== 2 || emailParts[1] !== domain.name) {
+      logger.warn(`[Mailbox Creation] Invalid email format rejected: "${email}". Expected format: username@${domain.name}`);
+      return res.status(400).json({ error: `Invalid email format. Must be exactly username@${domain.name} without duplicates.` });
     }
 
     const salt = await bcrypt.genSalt(10);
