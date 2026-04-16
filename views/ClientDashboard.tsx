@@ -189,13 +189,18 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
     e.preventDefault();
     if (!selectedDomainId) return;
 
+    const domain = domains.find(d => d._id === selectedDomainId);
+    if (!domain) return;
+
     // Get recovery email from form input directly since we don't have separate state for it
     const formData = new FormData(e.target as HTMLFormElement);
     const recoveryEmail = formData.get('recoveryEmail') as string;
 
+    const fullEmail = `${newMailboxEmail}@${domain.name}`;
+
     try {
       await api.post(`/api/domains/${selectedDomainId}/mailboxes`, {
-        email: newMailboxEmail,
+        email: fullEmail,
         password: newMailboxPassword,
         recovery_email: recoveryEmail
       });

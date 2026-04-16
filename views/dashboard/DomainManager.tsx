@@ -134,7 +134,14 @@ const DomainManager = (props: Props) => {
                               <div className="flex-1 min-w-[150px]">
                                   <label className="text-[10px] font-bold text-slate-500 uppercase">Username</label>
                                   <div className="flex items-center">
-                                     <input type="text" className="bg-slate-800 border border-slate-700 rounded-l-lg px-3 py-1.5 text-sm text-white focus:ring-1 focus:ring-emerald-500 outline-none w-full" placeholder="user" value={props.newMailboxEmail.split('@')[0]} onChange={e => props.setNewMailboxEmail(e.target.value + '@' + domain.name)} required />
+                                     <input 
+                                        type="text" 
+                                        className="bg-slate-800 border border-slate-700 rounded-l-lg px-3 py-1.5 text-sm text-white focus:ring-1 focus:ring-emerald-500 outline-none w-full" 
+                                        placeholder="user" 
+                                        value={props.newMailboxEmail} 
+                                        onChange={e => props.setNewMailboxEmail(e.target.value.split('@')[0])} 
+                                        required 
+                                     />
                                      <span className="bg-slate-700 border border-slate-700 border-l-0 rounded-r-lg px-2 py-1.5 text-xs text-slate-400">@{domain.name}</span>
                                   </div>
                               </div>
