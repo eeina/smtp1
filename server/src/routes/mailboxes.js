@@ -11,11 +11,7 @@ const logger = require('../config/logger');
 // List Mailboxes
 router.get('/', authenticateClient, async (req, res) => {
   try {
-    // Find all domains owned by client
-    const domains = await Domain.find({ client_id: req.user.client_id }).select('_id');
-    const domainIds = domains.map(d => d._id);
-
-    const mailboxes = await Mailbox.find({ domain_id: { $in: domainIds } })
+    const mailboxes = await Mailbox.find()
       .populate('domain_id', 'name')
       .sort({ created_at: -1 });
 
@@ -30,10 +26,6 @@ router.post('/:id/impersonate', authenticateClient, async (req, res) => {
   try {
     const mailbox = await Mailbox.findById(req.params.id);
     if (!mailbox) return res.status(404).json({ error: 'Mailbox not found' });
-
-    // Verify ownership via Domain
-    const domain = await Domain.findOne({ _id: mailbox.domain_id, client_id: req.user.client_id });
-    if (!domain) return res.status(403).json({ error: 'Access denied' });
 
     // Update the last_admin_access timestamp
     mailbox.last_admin_access = new Date();
@@ -66,10 +58,6 @@ router.patch('/:id', authenticateClient, async (req, res) => {
     const mailbox = await Mailbox.findById(req.params.id);
     if (!mailbox) return res.status(404).json({ error: 'Mailbox not found' });
 
-    // Verify ownership via Domain
-    const domain = await Domain.findOne({ _id: mailbox.domain_id, client_id: req.user.client_id });
-    if (!domain) return res.status(403).json({ error: 'Access denied' });
-
     if (password) {
         if (password.length < 6) return res.status(400).json({ error: 'Password too short' });
         const salt = await bcrypt.genSalt(10);
@@ -97,9 +85,6 @@ router.delete('/:id', authenticateClient, async (req, res) => {
     // 1. Verify ownership via Domain relationship
     const mailbox = await Mailbox.findById(req.params.id);
     if (!mailbox) return res.status(404).json({ error: 'Mailbox not found' });
-
-    const domain = await Domain.findOne({ _id: mailbox.domain_id, client_id: req.user.client_id });
-    if (!domain) return res.status(403).json({ error: 'Access denied' });
 
     // 2. Delete messages
     await EmailMessage.deleteMany({ mailbox_id: mailbox._id });

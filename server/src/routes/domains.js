@@ -33,7 +33,7 @@ router.post('/', authenticateClient, async (req, res) => {
 // Delete Domain
 router.delete('/:id', authenticateClient, async (req, res) => {
   try {
-    const domain = await Domain.findOne({ _id: req.params.id, client_id: req.user.client_id });
+    const domain = await Domain.findOne({ _id: req.params.id });
     if (!domain) return res.status(404).json({ error: 'Domain not found' });
 
     // Find all mailboxes associated with this domain
@@ -60,7 +60,7 @@ router.delete('/:id', authenticateClient, async (req, res) => {
 // Verify Domain
 router.post('/:id/verify', authenticateClient, async (req, res) => {
   try {
-    const domain = await Domain.findOne({ _id: req.params.id, client_id: req.user.client_id });
+    const domain = await Domain.findOne({ _id: req.params.id });
     if (!domain) return res.status(404).json({ error: 'Domain not found' });
 
     const isVerified = await domainService.verifyDomainDns(domain.name, domain.verification_token);
@@ -88,7 +88,7 @@ router.post('/:id/verify', authenticateClient, async (req, res) => {
 // Check DNS Status
 router.get('/:id/dns', authenticateClient, async (req, res) => {
   try {
-    const domain = await Domain.findOne({ _id: req.params.id, client_id: req.user.client_id });
+    const domain = await Domain.findOne({ _id: req.params.id });
     if (!domain) return res.status(404).json({ error: 'Domain not found' });
 
     const status = await domainService.getDnsStatus(domain.name, domain.verification_token);
@@ -102,7 +102,7 @@ router.get('/:id/dns', authenticateClient, async (req, res) => {
 // List Domains
 router.get('/', authenticateClient, async (req, res) => {
   try {
-    const domains = await Domain.find({ client_id: req.user.client_id });
+    const domains = await Domain.find();
     res.json(domains);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch domains' });
@@ -116,8 +116,8 @@ router.post('/:id/mailboxes', authenticateClient, async (req, res) => {
     
     logger.info(`[Mailbox Creation] Attempting to create mailbox. Payload email: "${email}"`);
 
-    // Verify domain ownership
-    const domain = await Domain.findOne({ _id: req.params.id, client_id: req.user.client_id });
+    // Verify domain
+    const domain = await Domain.findOne({ _id: req.params.id });
     if (!domain) return res.status(404).json({ error: 'Domain not found' });
     if (!domain.is_verified) return res.status(400).json({ error: 'Domain not verified' });
     

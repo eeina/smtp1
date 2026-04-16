@@ -16,7 +16,7 @@ router.get('/messages', authenticateClient, async (req, res) => {
     const direction = req.query.direction; // 'inbound' | 'outbound' | ''
 
     // 1. Find all domains owned by client
-    const domains = await Domain.find({ client_id: req.user.client_id }).select('_id');
+    const domains = await Domain.find().select('_id');
     const domainIds = domains.map(d => d._id);
 
     // 2. Find all mailboxes for these domains
