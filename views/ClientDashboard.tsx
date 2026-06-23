@@ -46,6 +46,7 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
   
   // Navigation State
   const [currentView, setCurrentView] = useState<'dashboard' | 'audit' | 'admins'>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [domains, setDomains] = useState<Domain[]>([]);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
@@ -241,17 +242,35 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
       <DashboardSidebar 
         user={user} 
         onLogout={onLogout} 
-        onShowLogs={() => setShowLogs(true)} 
-        onOpenSettings={() => setShowAccountSettings(true)}
+        onShowLogs={() => { setShowLogs(true); setIsMobileMenuOpen(false); }} 
+        onOpenSettings={() => { setShowAccountSettings(true); setIsMobileMenuOpen(false); }}
         onOpenInbox={onOpenWebmail}
-        onViewChange={setCurrentView}
+        onViewChange={(view) => { setCurrentView(view); setIsMobileMenuOpen(false); }}
         currentView={currentView}
+        isOpenMobile={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
-      <main className="flex-1 min-w-0 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            
-            {/* AUDIT VIEW */}
+      <main className="flex-1 min-w-0 overflow-y-auto flex flex-col">
+        {/* Mobile Header */}
+        <div className="lg:hidden h-16 border-b border-slate-800 bg-slate-950 flex items-center px-4 shrink-0">
+            <button 
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+            >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <div className="ml-4 font-black tracking-tight text-lg text-white">
+                Admin<span className="text-emerald-500">Panel</span>
+            </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              
+              {/* AUDIT VIEW */}
             {currentView === 'audit' && (
                 <GlobalAuditView />
             )}
@@ -305,6 +324,7 @@ const ClientDashboard = ({ user, onLogout, onUserUpdate, onOpenWebmail, onImpers
                     </div>
                 </>
             )}
+          </div>
         </div>
       </main>
 

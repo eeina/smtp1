@@ -9,16 +9,35 @@ interface Props {
   onOpenInbox: () => void;
   onViewChange?: (view: 'dashboard' | 'audit' | 'admins') => void;
   currentView?: 'dashboard' | 'audit' | 'admins';
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
-const DashboardSidebar = ({ user, onLogout, onShowLogs, onOpenSettings, onOpenInbox, onViewChange, currentView = 'dashboard' }: Props) => {
+const DashboardSidebar = ({ 
+    user, onLogout, onShowLogs, onOpenSettings, onOpenInbox, onViewChange, currentView = 'dashboard', isOpenMobile, onCloseMobile 
+}: Props) => {
   return (
-    <div className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 relative z-30 hidden lg:flex">
-      {/* Brand */}
-      <div className="h-20 flex items-center px-6 border-b border-slate-800 bg-slate-950/30">
-        <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center mr-3 text-white font-black shadow-lg shadow-emerald-900/40">E</div>
-        <span className="text-white font-black tracking-tight text-lg">Admin<span className="text-emerald-500">Panel</span></span>
-      </div>
+    <>
+      {/* Mobile Overlay */}
+      {isOpenMobile && (
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            onClick={onCloseMobile}
+          />
+      )}
+      
+      {/* Sidebar Content */}
+      <div className={`fixed inset-y-0 left-0 transform ${isOpenMobile ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition duration-300 ease-in-out w-64 bg-slate-900 border-r border-slate-800 flex flex-col flex-shrink-0 z-50`}>
+        {/* Brand */}
+        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-950/30">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center mr-3 text-white font-black shadow-lg shadow-emerald-900/40">E</div>
+            <span className="text-white font-black tracking-tight text-lg">Admin<span className="text-emerald-500">Panel</span></span>
+          </div>
+          <button className="lg:hidden text-slate-400 hover:text-white" onClick={onCloseMobile}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
       
       {/* Navigation */}
       <div className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
@@ -82,6 +101,7 @@ const DashboardSidebar = ({ user, onLogout, onShowLogs, onOpenSettings, onOpenIn
         </button>
       </div>
     </div>
+    </>
   );
 };
 

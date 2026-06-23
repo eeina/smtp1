@@ -5,6 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 
 const smtpServer = require('./src/smtp/server');
+const pop3Server = require('./src/pop3/server');
 const logger = require('./src/config/logger');
 const seedDatabase = require('./src/config/seed');
 
@@ -69,9 +70,11 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 const SMTP_PORT = process.env.SMTP_PORT || 2525;
 const SUBMISSION_PORT = process.env.SUBMISSION_PORT || 5870;
+const POP3_PORT = process.env.POP3_PORT || 1100;
 
 app.listen(PORT, () => {
   logger.info(`Express Server running on port ${PORT}`);
 });
 
 smtpServer.start(SMTP_PORT, SUBMISSION_PORT);
+pop3Server.start(POP3_PORT);
