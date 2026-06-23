@@ -23,9 +23,13 @@ export default function App() {
         try {
           if (role === 'client') {
              const res = await api.get('/api/account/profile');
-             setUser({ ...res.data, role: 'client', token });
-             // Admin defaults to webmail now to look "like user", can switch to dashboard
-             setView('webmail-dashboard'); 
+             const fullUser = { ...res.data, role: 'client', token };
+             setUser(fullUser);
+             if (fullUser.has_mailbox) {
+                 setView('webmail-dashboard'); 
+             } else {
+                 setView('client-dashboard');
+             }
           } else if (role === 'mailbox') {
              const res = await api.get('/api/webmail/profile');
              setUser({ ...res.data, role: 'mailbox', token });
@@ -51,8 +55,11 @@ export default function App() {
   const handleLoginSuccess = (userData: User) => {
     setUser(userData);
     localStorage.setItem('smtp_role', userData.role);
-    // Admins now land on webmail too
-    setView('webmail-dashboard');
+    if (userData.role === 'client' && !userData.has_mailbox) {
+        setView('client-dashboard');
+    } else {
+        setView('webmail-dashboard');
+    }
   };
 
   const handleLogout = () => {
