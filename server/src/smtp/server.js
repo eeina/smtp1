@@ -167,16 +167,38 @@ const server25 = new SMTPServer({
   logger: false 
 });
 
-const server587 = new SMTPServer({
+// Try reading Certbot SSL Certificates dynamically
+const fs = require('fs');
+let sslCredentials = null;
+try {
+  sslCredentials = {
+    key: fs.readFileSync('/etc/letsencrypt/live/mail.eeina.com/privkey.pem'),
+    cert: fs.readFileSync('/etc/letsencrypt/live/mail.eeina.com/fullchain.pem')
+  };
+  logger.info('[SMTP] Loaded Let\'s Encrypt SSL Certificates successfully.');
+} catch (err) {
+  logger.warn('[SMTP] Run without SSL/STARTTLS. Certificates missing or unreadable.');
+}
+
+const server587Config = {
   secure: false,
   authOptional: false,
-  disabledCommands: ['STARTTLS'],
   size: 200 * 1024 * 1024, // 200MB limit for outbound
   onAuth,
   onRcptTo,
   onData,
   logger: false
-});
+};
+
+if (sslCredentials) {
+  server587Config.key = sslCredentials.key;
+  server587Config.cert = sslCredentials.cert;
+  // Enable STARTTLS, so do not disable it
+} else {
+  server587Config.disabledCommands = ['STARTTLS'];
+}
+
+const server587 = new SMTPServer(server587Config);
 
 module.exports = {
   start: (port25 = 25, port587 = 587) => {
